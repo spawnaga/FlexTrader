@@ -1,0 +1,17 @@
+ib-insync==0.9.69
+keras==2.8.0
+keras-nightly==2.5.0.dev2021032900
+Keras-Preprocessing==1.1.2
+keras-rl2==1.0.5
+keyring==23.11.0
+multiprocess==0.70.12.2
+multitasking==0.0.9
+numpy==1.19.0
+pandas==1.2.3
+psutil==5.9.4
+scikit-learn==1.0.2
+scikit-optimize==0.8.1
+scipy==1.9.3
+ta==0.7.0
+tensorflow==2.5.0
+
