@@ -334,13 +334,14 @@ class MultiTask:
             return np.argmax(q_values[0])
 
         if task == 'actor_critic':
-            if np.random.rand() <= self.actor_critic_epsilon and job == 'train':
-                print('random')
-                return random.randrange(self.action_size)
-            probs = self.actor_critic_model.predict(state)
-            action = np.argmax(probs[0])
-            self.actor_critic_epsilon = max(self.actor_critic_epsilon * self.actor_critic_epsilon_decay, self.actor_critic_epsilon_min)
-            return action
+            if job == 'train':
+                self.actor_critic_epsilon *= self.actor_critic_epsilon_decay
+                self.actor_critic_epsilon = max(self.actor_critic_epsilon, self.actor_critic_epsilon_min)
+                if np.random.rand() <= self.actor_critic_epsilon:
+                    print('random')
+                    return random.randrange(self.action_size)
+            probs = self.actor_critic_model.predict(state)[0]
+            return np.argmax(probs)
 
         elif task == 'policy_gradient':
             if job == 'train':

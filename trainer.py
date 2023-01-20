@@ -104,7 +104,7 @@ def train(task):
 
 if __name__ == '__main__':
     # for i in range(10):
-    with Pool(4) as p:
+    with Pool(20) as p:
         results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
 
