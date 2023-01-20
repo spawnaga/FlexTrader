@@ -189,7 +189,7 @@ class MultiTask:
         x = CuDNNLSTM(8)(x)
 
         # Define the output layers for the first and second tasks
-        output = Dense(num_outputs_2, activation='softmax')(x)
+        output = Dense(num_outputs_2, activation='relu')(x)
 
         # Create the model
         model = Model(inputs=input_layer, outputs=output)
@@ -262,7 +262,10 @@ class MultiTask:
                 q_values[i][actions[i]] = rewards[i] + self.ddqn_gamma * next_q_values[i][a]
 
         self.ddqn_model.fit(states, q_values, verbose=0)
-        # print("111111111")
+        self.update_target_model()
+
+    def update_target_model(self):
+        self.ddqn_target_model.set_weights(self.ddqn_model.get_weights())
 
     def replay_actor_critic(self, batch_size):
         """Method for training the actor-critic model using experience replay"""
@@ -273,47 +276,45 @@ class MultiTask:
         rewards = np.array([e[2] for e in experiences])
         next_states = np.array([e[3] for e in experiences])
         dones = np.array([e[4] for e in experiences])
-    
-        # Predict the Q-values of the next states
 
+        # Predict the Q-values of the next states
         next_q_values = self.actor_critic_model.predict(next_states.squeeze())
 
         # Compute the target Q-values
-        target_q_values = rewards + self.actor_critic_gamma * np.amax(next_q_values, axis=1) * (1 - dones)
-    
+        target_q_values = rewards + self.actor_critic_gamma * (1 - dones) * np.amax(next_q_values, axis=1)
+
         # Update the Q-values of the current states
         target_q_values_batch = self.actor_critic_model.predict(states.squeeze())
         for i, action in enumerate(actions):
             target_q_values_batch[i, action] = target_q_values[i]
-    
+
         # Fit the model on the experiences
         self.actor_critic_model.fit(states.squeeze(), target_q_values_batch, epochs=1, verbose=0)
         self.actor_critic_alpha *= self.actor_critic_alpha_decay
         self.actor_critic_alpha = max(self.actor_critic_alpha_min, self.actor_critic_alpha)
         self.actor_critic_model.optimizer.learning_rate = self.actor_critic_alpha
 
-
     def replay_policy_gradient(self, batch_size):
-        """Replay the experiences from the memory for the policy gradient task"""
         experiences = self.policy_gradient_memory.sample(batch_size)
         states = np.array([e[0] for e in experiences])
         actions = np.array([e[1] for e in experiences])
         rewards = np.array([e[2] for e in experiences])
-        next_states = np.array([e[3] for e in experiences])
-        dones = np.array([e[4] for e in experiences])
-    
-        # Predict the Q-values of the next states
-        next_q_values = self.policy_gradient_model.predict(next_states.squeeze())
-        # Compute the target Q-values
-        target_q_values = rewards + self.policy_gradient_gamma * np.amax(next_q_values, axis=1) * (1 - dones)
-    
-        # Update the Q-values of the current states
-        target_q_values_batch = self.policy_gradient_model.predict(states.squeeze())
-        for i, action in enumerate(actions):
-            target_q_values_batch[i, action] = target_q_values[i]
-    
-        # Fit the model on the experiences
-        self.policy_gradient_model.fit(states.squeeze(), target_q_values_batch, epochs=1, verbose=0)
+
+        # Compute the advantages
+        advantages = rewards - np.mean(rewards)
+        advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + 1e-10)
+
+        # Get the old policy probability
+        old_policy_prob = self.policy_gradient_model.predict(states.squeeze())
+        # Get the action probability of the actions taken
+        action_prob = old_policy_prob[np.arange(batch_size), actions]
+        # Compute the loss
+        loss = - np.mean(np.log(action_prob) * advantages)
+
+        # Compute the gradients
+        grads = self.policy_gradient_model.optimizer.get_gradients(loss, self.policy_gradient_model.trainable_weights)
+        # Apply the gradients
+        self.policy_gradient_model.optimizer.apply_gradients(zip(grads, self.policy_gradient_model.trainable_weights))
 
     def act(self, state, task, job='test'):
         """Method for getting the next action for the agent to take"""
