@@ -136,7 +136,7 @@ class Market:
         self.scaler = MinMaxScaler(feature_range=(0, 4))
         trader.ib.qualifyContracts(self.contract)
         
-    def update_data(self):
+    def download_data(self):
         # Download historical data using reqHistoricalData
         self.bars = self.trader.ib.reqHistoricalData(
             self.contract, endDateTime='', durationStr=f'{self.history_length} M',
@@ -148,9 +148,14 @@ class Market:
         df = util.df(self.bars)
         # df = self.get_analysis(df)
         df.reset_index(inplace = True,drop=True)
+        df=df[['open','high','low','close','volume']]
+        
+    def update_data(self):
+
+        df = self.load_data()
         # df = df.drop(df.iloc[:,10:],axis=1)
         df['contract']=0
-        df=df.drop(['date','average'],axis=1)
+        
         self.df = df
         self.data = self.scaler.fit_transform(df)
         
@@ -162,14 +167,11 @@ class Market:
         np.append(state, i + 2 >= len(self.data))
         return np.expand_dims(state, 0)
     
-    # def get_analysis(self, df):
-    #     # Analyze using Technical Analysis on talib libraries
-    #     df = indicators_dataframe(df)
-    #     df = df[df.columns[4:]]
-    #     df = df.drop('volume',axis=1)
-    #     df = df.dropna()
-    #     return df
-    
+    def load_data(self, file=r'C:/Projects/FlexTrader/NQ_data.csv'):
+        df=pd.read_csv(file,)
+        df=df[['open','high','low','close','volume']]
+        return df
+        
     def get_df(self):
         """Method for returning the DataFrame of market data"""
         return self.df
