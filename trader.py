@@ -15,10 +15,7 @@ util.startLoop()
 class Trader:
     """Class for interacting with Interactive Brokers Gateway"""
     def __init__(self, history_length=10):
-        # Connect to IB gateway
-        self.ib = IB()
-        self.ib.connect('127.0.0.1', 7496, clientId=np.random.randint(0,1000))
-        
+
         # Initialize attributes
         self.profit = 0
         self.num_trades = 0
@@ -41,7 +38,7 @@ class Trader:
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
         return win_loss_ratio - (1 - win_loss_ratio) / (avg_profit / 20)
 
-    def trade(self, contract, action, market, i,row, previous_row):
+    def trade(self, action, market, i,row, previous_row):
         """Execute a trade based on the current market state and the output of the model"""
         realizedPNL = 0
         # Get close price from Market object
@@ -127,18 +124,29 @@ class Trader:
 
 class Market:
     """Class for handling market data"""
-    def __init__(self, trader, contract, history_length=1):
-        # Store the history length as an instance variable
-        self.history_length = history_length
-        self.trader = trader
-        # Get the contract and data
-        self.contract = contract
+    def __init__(self, trader, real = False, history_length=1):
+        # Connect to IB gateway
+        if real:
+            self.ib = IB()
+            self.ib.connect('127.0.0.1', 7496, clientId=np.random.randint(0, 1000))
+
+            # Store the history length as an instance variable
+            self.history_length = history_length
+
+            # Get the contract and data
+            self.contract = contract
+            self.ib.qualifyContracts(self.contract)
         self.scaler = MinMaxScaler(feature_range=(0, 4))
-        trader.ib.qualifyContracts(self.contract)
+        self.trader = trader
+
         
-    def download_data(self):
+    def download_data(self, history_length=10):
+
+
+        self.contract = ContFuture('NQ', 'CME')
+        self.ib.qualifyContracts(contract)
         # Download historical data using reqHistoricalData
-        self.bars = self.trader.ib.reqHistoricalData(
+        self.bars = self.ib.reqHistoricalData(
             self.contract, endDateTime='', durationStr=f'{self.history_length} M',
             barSizeSetting='5 mins', whatToShow='TRADES',
             useRTH=False
@@ -167,8 +175,8 @@ class Market:
         np.append(state, i + 2 >= len(self.data))
         return np.expand_dims(state, 0)
     
-    def load_data(self, file=r'C:/Projects/FlexTrader/NQ_data.csv'):
-        df=pd.read_csv(file,)
+    def load_data(self, file=r'NQ_data.csv'):
+        df=pd.read_csv(file)
         df=df[['open','high','low','close','volume']]
         return df
         

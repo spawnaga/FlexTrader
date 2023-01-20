@@ -17,8 +17,6 @@ def train(task):
     # Initialize the Trader object and connect to the IB gateway
     # print('*********')
     trader = Trader()
-    contract = ContFuture('NQ', 'CME')
-    trader.ib.qualifyContracts(contract)
     
     # Initialize the DQN agent
     action_size = 5
@@ -38,7 +36,7 @@ def train(task):
     while not trader.profit >= 1000000*0.3 or not trader.num_trades >= 1000:
         j+=1
         # while not trader.profit >= 1000000*0.3 or not trader.num_trades >= 1000:
-        market = Market(trader, contract, history_length=1)
+        market = Market(trader, history_length=1)
         market.update_data()
         df = market.get_df()
         state = market.get_state(0)
@@ -61,7 +59,7 @@ def train(task):
             action = agent.act(state=state, task= task, job='train')
             print(f'iterate {i} of {task} yielded {action}')
             # Execute the trade and get the reward
-            reward = trader.trade(contract, action, market, i,row, previous_row)
+            reward = trader.trade(action, market, i,row, previous_row)
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -104,7 +102,7 @@ def train(task):
 
 if __name__ == '__main__':
     # for i in range(10):
-    with Pool(20) as p:
+    with Pool(4) as p:
         results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
 

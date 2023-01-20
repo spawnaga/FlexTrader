@@ -3,7 +3,6 @@ keras==2.8.0
 keras-nightly==2.5.0.dev2021032900
 Keras-Preprocessing==1.1.2
 keras-rl2==1.0.5
-keyring==23.11.0
 multiprocess==0.70.12.2
 multitasking==0.0.9
 numpy==1.19.0

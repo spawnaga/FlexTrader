@@ -12,7 +12,7 @@ from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.layers import Input, Dense
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
-from keras.layers import Lambda
+from tensorflow.keras.layers import Lambda
 from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 import pickle
 
