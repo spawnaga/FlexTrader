@@ -52,7 +52,6 @@ def train(task):
             if done:
                 break
             # if i>35: break
-    
             # Get the current and next states
             next_state = market.get_state(i+1)
             # Predict the action using the model
@@ -74,19 +73,7 @@ def train(task):
             # Set the current state to the next state
             state = next_state
     
-        # if trader.total_value > max(pnl):
-        #     pnl.append(trader.total_value)
-        #     # Calculate the mean and standard deviation of the rewards and steps
-        #     mean_reward = np.mean(rewards)
-        #     std_reward = np.std(rewards)
-        #     mean_steps = np.mean(steps)
-        #     std_steps = np.std(steps)
-
-            # Print the results
-            # print(f"Mean reward per episode: {mean_reward:.2f} +/- {std_reward:.2f}")
-            # print(f"Mean steps per episode: {mean_steps:.2f} +/- {std_steps:.2f}")
             plt.plot(rolling_average)
-            # plt.show()
 
             replay_functions = {
                                 "dqn": agent.replay_dqn,
@@ -103,7 +90,7 @@ def train(task):
 if __name__ == '__main__':
     # for i in range(10):
     with Pool(4) as p:
-        results = [p.map(train, ['dqn', 'ddqn', 'actor_critic'])]
+        results = [p.map(train, ["dqn","ddqn","actor_critic","policy_gradient"])]
         print(results)
 
 

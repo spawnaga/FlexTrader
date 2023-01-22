@@ -18,8 +18,6 @@ def test(task):
     # Initialize the Trader object and connect to the IB gateway
     # print('*********')
     trader = Trader()
-    contract = ContFuture('NQ', 'CME')
-    trader.ib.qualifyContracts(contract)
 
     # Initialize the DQN agent
     action_size = 5
@@ -38,19 +36,16 @@ def test(task):
 
 
     # while not trader.profit >= 1000000*0.3 or not trader.num_trades >= 1000:
-    market = Market(trader, contract, history_length=1)
+    market = Market(trader,history_length=1)
     market.update_data()
     df = market.get_df()
-    state = market.get_state(0).reshape(-1, 7)
+    state = market.get_state(0)
     state_size = state.shape[1]
-    agent = MultiTask(task=task, state=state, num_outputs_1=action_size, num_outputs_2=action_size,
+    agent = MultiTask(task="policy_gradient", state=state, num_outputs_1=action_size, num_outputs_2=action_size,
                       state_size=state_size, action_size=action_size)
     if not eval(f'agent.{task}_memory'):
         agent.load(name= 'trial1', task= task)
-        if task == "dqn":
-            agent.dqn_epsilon=-1
-        elif task =='ddqn':
-            agent.ddqn_epsilon=-1
+
     # if agent.dqn_memory ==deque([]):
     #     agent.load("trial1",task)
     for i, row in df.iterrows():
@@ -59,14 +54,19 @@ def test(task):
         done = i + 2 >= len(df)
         if done:
             break
-        # if i>35: break
-
-        # Get the current and next states
-        next_state = market.get_state(i + 1).reshape(-1, 7)
+        if i>9935: 
+            
+            # Get the current and next states
+            next_state = market.get_state(i + 1)
+            state=next_state
+            action = agent.act(state=state, task="policy_gradient", job='train')
+            print(state)
+            print(action)
+            break
         # Predict the action using the model
-        action = agent.act(state=state.reshape(-1, 7), task=task, job='test')
+        action = agent.act(state=state, task="policy_gradient", job='test')
         # Execute the trade and get the reward
-        reward = trader.trade(contract, action, market, i, row, previous_row)
+        reward = trader.trade(action, market, i, row, previous_row)
         # Append the total reward and number of steps for this episode to the lists
         rewards.append(reward)
         steps.append(i)
