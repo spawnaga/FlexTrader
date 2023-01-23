@@ -9,33 +9,28 @@ import numpy as np
 import random
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
-from tensorflow.keras.layers import Input, Dense, Reshape
+from tensorflow.keras.layers import Input, Dense, Lambda
 from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam,SGD
-from tensorflow.keras.layers import Lambda
+from tensorflow.keras.optimizers import Adam
 from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 import pickle
-from tensorflow.python.ops.losses import losses_impl
 
 
 # Start the asyncio event loop
 
-
-def policy_gradient_loss(y_true, y_pred):
-    # Define the loss function
-    action_prob = y_pred[:, :-1]
-    advantages = y_pred[:, -1]
-
-    cross_entropy = tf.keras.backend.categorical_crossentropy(y_true, action_prob)
-    loss = tf.reduce_mean(cross_entropy * advantages)
-    return loss
-
-
 class Memory:
     def __init__(self, max_size=100):
-        self.buffer = []
+        if not hasattr(self, 'buffer'):
+            self.buffer = []
+        else:
+            if self.buffer is None:
+                self.buffer = []
+        if not hasattr(self, 'priorities'):
+            self.priorities = []
+        else:
+            if self.priorities is None:
+                self.priorities = []
         self.max_size = max_size
-        self.priorities = []
 
     def add(self, experience, priority=1):
         if len(self.buffer) == self.max_size:
@@ -70,26 +65,26 @@ class MultiTask:
         self.learning_rate = 0.001
         if task == 'dqn':
             # Initialize DQN model
-            self.dqn_model = self._build_dqn_model(num_outputs_1, num_outputs_2)
+            self.dqn_model = self._build_model(num_outputs_1, num_outputs_2)
             self.dqn_memory = Memory(max_size=50000)
             self.dqn_gamma = 0.95
             self.dqn_epsilon = 1.0
-            self.dqn_epsilon_min = 0.01
+            self.dqn_epsilon_min = 0.2
             self.dqn_epsilon_decay = 0.995
             self.dqn_learning_rate = 0.001
         elif task == 'ddqn':
             # Initialize DDQN model
-            self.ddqn_model = self._build_ddqn_model(num_outputs_1, num_outputs_2)
-            self.ddqn_target_model = self._build_ddqn_model(num_outputs_1, num_outputs_2)
+            self.ddqn_model = self._build_model(num_outputs_1, num_outputs_2)
+            self.ddqn_target_model = self._build_model(num_outputs_1, num_outputs_2)
             self.ddqn_memory = Memory(max_size=50000)
             self.ddqn_gamma = 0.95
             self.ddqn_epsilon = 1.0
-            self.ddqn_epsilon_min = 0.01
+            self.ddqn_epsilon_min = 0.2
             self.ddqn_epsilon_decay = 0.995
             self.ddqn_learning_rate = 0.001
         elif task == 'actor_critic':
             # Initialize actor-critic model
-            self.actor_critic_model = self._build_actor_critic_model(num_outputs_1, num_outputs_2)
+            self.actor_critic_model = self._build_model(num_outputs_1, num_outputs_2)
             self.actor_critic_memory = Memory(max_size=50000)
             self.actor_critic_gamma = 0.95
             self.actor_critic_alpha = 0.001
@@ -97,81 +92,18 @@ class MultiTask:
             self.actor_critic_alpha_min = 0.01
             self.actor_critic_epsilon = 1.0
             self.actor_critic_epsilon_decay = 0.995
-            self.actor_critic_epsilon_min = 0.01
+            self.actor_critic_epsilon_min = 0.2
         elif task == 'policy_gradient':
             # Initialize PPO model
             self.policy_gradient_learning_rate = 0.001
-            self.policy_gradient_model = self._build_policy_gradient_model(num_outputs_1, num_outputs_2)
+            self.policy_gradient_model = self._build_model(num_outputs_1, num_outputs_2)
             self.policy_gradient_memory = Memory(max_size=50000)
             self.policy_gradient_gamma = 0.95
             self.policy_gradient_epsilon = 1.0
             self.policy_gradient_alpha_decay = 0.995
-            self.policy_gradient_alpha_min = 0.01
+            self.policy_gradient_alpha_min = 0.2
 
-    def _build_dqn_model(self, num_outputs_1, num_outputs_2):
-        # Define the input layer
-        input_layer = Input(shape=(self.state_size,))
-        x = input_layer
-
-        # Define the hidden layers using CuDNNLSTM
-        x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
-        x = CuDNNLSTM(24, return_sequences=True)(x)
-        x = CuDNNLSTM(8)(x)
-
-        # Define the output layers for the first and second tasks
-        output = Dense(num_outputs_2, activation='linear')(x)
-
-        # Create the model
-        model = Model(inputs=input_layer, outputs=output)
-
-        # Compile the model
-        model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate))
-
-        return model
-
-    def _build_ddqn_model(self, num_outputs_1, num_outputs_2):
-        # Define the input layer
-        input_layer = Input((self.state_size,))
-        x = input_layer
-
-        # Define the hidden layers using CuDNNLSTM
-        x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
-        x = CuDNNLSTM(24, return_sequences=True)(x)
-        x = CuDNNLSTM(8)(x)
-
-        # Define the output layers for the first and second tasks
-        output = Dense(num_outputs_2, activation='linear')(x)
-
-        # Create the model
-        model = Model(inputs=input_layer, outputs=output)
-
-        # Compile the model
-        model.compile(loss='mse', optimizer=Adam(learning_rate=self.learning_rate))
-
-        return model
-
-    def _build_actor_critic_model(self, num_outputs_1, num_outputs_2):
-        # Define the input layer
-        input_layer = Input((self.state_size,))
-        x = input_layer
-
-        # Define the hidden layers using CuDNNLSTM
-        x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
-        x = CuDNNLSTM(24, return_sequences=True)(x)
-        x = CuDNNLSTM(8)(x)
-
-        # Define the output layers for the actor and critic
-        critic_output = Dense(num_outputs_1, activation='softmax')(x)
-
-        # Create the model
-        model = Model(inputs=input_layer, outputs=critic_output)
-
-        # Compile the model using the Adam optimizer
-        model.compile(optimizer=Adam(0.001), loss=['categorical_crossentropy', 'mse'])
-
-        return model
-
-    def _build_policy_gradient_model(self, num_outputs_1, num_outputs_2):
+    def _build_model(self, num_outputs_1, num_outputs_2):
         # Define the input layer
         input_layer = Input((self.state_size,))
         x = input_layer
@@ -188,11 +120,11 @@ class MultiTask:
         model = Model(inputs=input_layer, outputs=output)
 
         # Compile the model
-        model.compile(optimizer=Adam(learning_rate=0.01), loss='categorical_crossentropy')
+        model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy')
 
         return model
 
-    
+
     def add_dqn_transition(self, state, action, reward, next_state, done):
         # Add a transition to the memory for the DQN task
         transition = (state, action, reward, next_state, done)
@@ -223,22 +155,16 @@ class MultiTask:
         rewards = np.array(rewards)
         dones = np.array(dones)
         next_states = np.concatenate(next_states)
-        target_Qs = self.dqn_model.predict(states)
-        target_Qs_next = self.dqn_model.predict(next_states)
-        rewards = rewards.reshape(-1, 1)
-        dones = dones.reshape(-1, 1)
-        actions = actions.reshape(-1, 1)
+        target_Qs = self.dqn_model.predict(states.squeeze()).squeeze()
+        target_Qs_next = self.dqn_model.predict(next_states.squeeze()).squeeze()
+        actions = np.reshape(actions, (batch_size,))
+        dones = np.reshape(dones, (batch_size,))
+        rewards = np.reshape(rewards, (batch_size,))
 
         target_Qs[np.arange(batch_size), actions] = rewards + self.dqn_gamma * np.max(target_Qs_next, axis=1) * (
                     1 - dones)
+        self.dqn_model.fit(states, np.expand_dims(target_Qs, axis=1), epochs=1, verbose=0)
 
-        history = self.dqn_model.fit(states, target_Qs, epochs=1, verbose=0)
-        loss = history.history['loss'][0]
-        print('dqn loss is', loss)
-        self.dqn_epsilon *= self.dqn_epsilon_decay
-        self.dqn_epsilon = max(self.dqn_epsilon_min, self.dqn_epsilon)
-
-        # print("000000000")
 
     def replay_ddqn(self, batch_size):
         if self.ddqn_memory._size() < batch_size:
@@ -250,20 +176,17 @@ class MultiTask:
         actions = np.vstack(actions)
         rewards = np.vstack(rewards)
         dones = np.vstack(dones)
+        actions = np.reshape(actions, (batch_size,))
+        dones = np.reshape(dones, (batch_size,))
+        rewards = np.reshape(rewards, (batch_size,))
+        
+        q_values = self.ddqn_model.predict(states.squeeze()).squeeze()
+        next_q_values = self.ddqn_target_model.predict(next_states.squeeze()).squeeze()
 
-        q_values = self.ddqn_model.predict(states)
-        next_q_values = self.ddqn_target_model.predict(next_states)
-
-        for i in range(batch_size):
-            if dones[i]:
-                q_values[i][actions[i]] = rewards[i]
-            else:
-                a = np.argmax(self.ddqn_model.predict(next_states[i:i + 1]), axis=1)
-                q_values[i][actions[i]] = rewards[i] + self.ddqn_gamma * next_q_values[i][a]
-
-        history = self.ddqn_model.fit(states, q_values, verbose=0)
-        loss = history.history['loss'][0]
-        print('ddqn loss is', loss)
+        a = np.argmax(self.ddqn_model.predict(next_states.squeeze()).squeeze(), axis=1)
+        q_values[np.arange(batch_size), actions] = rewards + self.ddqn_gamma * next_q_values[np.arange(batch_size), a] * (1 - dones)
+        
+        self.ddqn_model.fit(states, np.expand_dims(a=q_values, axis=1), verbose=0)
         self.update_target_model()
 
     def update_target_model(self):
@@ -282,22 +205,21 @@ class MultiTask:
         dones = np.array([e[4] for e in experiences])
 
         # Predict the Q-values of the next states
-        next_q_values = self.actor_critic_model.predict(next_states.squeeze())
+        next_q_values = self.actor_critic_model.predict(next_states.squeeze()).squeeze()
 
         # Compute the target Q-values
         target_q_values = rewards + self.actor_critic_gamma * (1 - dones) * np.amax(next_q_values, axis=1)
 
         # Update the Q-values of the current states
-        target_q_values_batch = self.actor_critic_model.predict(states.squeeze())
+        target_q_values_batch = self.actor_critic_model.predict(states.squeeze()).squeeze()
         for i, action in enumerate(actions):
             target_q_values_batch[i, action] = target_q_values[i]
 
         # Fit the model on the experiences
-        history = self.actor_critic_model.fit(states.squeeze(), target_q_values_batch, epochs=1, verbose=0)
-        loss = history.history['loss'][0]
-        print('actor_critic loss is', loss)
+        self.actor_critic_model.fit(states.squeeze(), np.expand_dims(target_q_values_batch,axis=1), epochs=1, verbose=0)
+
         self.actor_critic_alpha *= self.actor_critic_alpha_decay
-        self.actor_critic_alpha = max(self.actor_critic_alpha_min, self.actor_critic_alpha) 
+        self.actor_critic_alpha = max(self.actor_critic_alpha_min, self.actor_critic_alpha)
         self.actor_critic_model.optimizer.learning_rate = self.actor_critic_alpha
 
     def replay_policy_gradient(self, batch_size):
@@ -305,11 +227,11 @@ class MultiTask:
         states = np.array([e[0] for e in experiences])
         actions = np.array([e[1] for e in experiences])
         rewards = np.array([e[2] for e in experiences])
-    
+
         # Compute the advantages
         advantages = rewards - np.mean(rewards)
         advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + 1e-10)
-    
+
         # Create a GradientTape to record the operations for automatic differentiation
         with tf.GradientTape() as tape:
             # Forward pass of the model
@@ -322,7 +244,7 @@ class MultiTask:
 
             # Compute the loss as the mean of the negative log likelihood
             loss = tf.reduce_mean(negative_log_likelihood * advantages)
-            print('policy_gradient loss is', loss.numpy().item())
+            # print('policy_gradient loss is', loss.numpy().item())
         # Compute the gradients of the loss with respect to the model's trainable weights
         grads = tape.gradient(loss, self.policy_gradient_model.trainable_weights)
         # Apply the gradients to the model's optimizer
@@ -336,6 +258,8 @@ class MultiTask:
     
         if task == 'dqn':
             if job == 'train' and np.random.rand() <= self.dqn_epsilon:
+                self.dqn_epsilon *= self.dqn_epsilon_decay
+                self.dqn_epsilon = max(self.dqn_epsilon, self.dqn_epsilon_min)
                 print('random')
                 return random.randrange(self.action_size)
             q_values = self.dqn_model.predict(state)
@@ -343,6 +267,8 @@ class MultiTask:
     
         elif task == 'ddqn':
             if job == 'train' and np.random.rand() <= self.ddqn_epsilon:
+                self.ddqn_epsilon *= self.ddqn_epsilon_decay
+                self.ddqn_epsilon = max(self.ddqn_epsilon, self.ddqn_epsilon_min)
                 print('random')
                 return random.randrange(self.action_size)
             q_values = self.ddqn_model.predict(state)
