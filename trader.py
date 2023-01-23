@@ -129,9 +129,9 @@ class Trader:
 class Market:
     """Class for handling market data"""
 
-    def __init__(self, trader, real=False, history_length=1, contract=None):
+    def __init__(self, trader, ibkr=False, history_length=1, contract=None):
         # Connect to IB gateway
-        if real:
+        if ibkr:
             self.ib = IB()
             self.ib.connect('127.0.0.1', 7496, clientId=np.random.randint(0, 1000))
 
@@ -144,12 +144,12 @@ class Market:
         self.scaler = MinMaxScaler(feature_range=(0, 4))
         self.trader = trader
 
-    def download_data(self, history_length=10):
+    def download_data(self):
         self.contract = ContFuture('NQ', 'CME')
         self.ib.qualifyContracts(self.contract)
         # Download historical data using reqHistoricalData
         self.bars = self.ib.reqHistoricalData(
-            self.contract, endDateTime='', durationStr=f'{self.history_length} M',
+            self.contract, endDateTime='', durationStr=f'{self.history_length} D',
             barSizeSetting='5 mins', whatToShow='TRADES',
             useRTH=False
         )
@@ -159,12 +159,14 @@ class Market:
         # df = self.get_analysis(df)
         df.reset_index(inplace=True, drop=True)
         df = df[['open', 'high', 'low', 'close', 'volume']]
+        return df
 
-    def update_data(self):
-        df = self.load_data()
-        # df = df.drop(df.iloc[:,10:],axis=1)
+    def update_data(self, ibkr=False):
+        if ibkr:
+            df = self.download_data()
+        else:
+            df = self.load_data()
         df['contract'] = 0
-
         self.df = df
         self.data = self.scaler.fit_transform(df)
 
