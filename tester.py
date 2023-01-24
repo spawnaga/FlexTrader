@@ -52,15 +52,13 @@ def test(task):
         next_state = market.get_state(i + 1)
 
         # Predict the action using the model
-        action = agent.act(state=state, task=task, job='train')
+        action = agent.act(state=state, task=task, job='test')
         print(f'iterate {i} of {task} yielded {action}')
         # Execute the trade and get the reward
-        reward = trader.trade(action, row)
-        # Append the total reward and number of steps for this episode to the lists
+        reward = trader.trade(action, row, job='test')
         rewards.append(reward)
         steps.append(i)
-        agent.add_to_memory(task, state, action, reward, next_state, done)
-        # if i>35: break
+        if i>35: break
 
         rolling_window.append(trader.realized_profit_loss)
 
@@ -81,7 +79,7 @@ def test(task):
 
 
 if __name__ == '__main__':
-    # results = test(task="actor_critic")
-    with Pool(4) as p:
-        results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
-        print(results)
+    results = test(task="policy_gradient")
+    # with Pool(4) as p:
+    #     results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+    #     print(results)

@@ -41,7 +41,7 @@ class Trader:
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
         return win_loss_ratio - (1 - win_loss_ratio) / (avg_profit / 20)
 
-    def trade(self, action, row):
+    def trade(self, action, row, job='test'):
         """Execute a trade based on the current market state and the output of the model"""
         realizedPNL = 0
         # Get close price from Market object
@@ -86,6 +86,9 @@ class Trader:
             else:
                 self.num_losses += 1
             self.priceAtStart = 0
+        if action == 2:
+            action = 2
+            
         else:
             action = 10
             Action = "hold"
@@ -93,11 +96,7 @@ class Trader:
         # Calculate profit or loss of trade
         unreliazed_profit_loss = self.num_contracts * (close_price - self.priceAtStart) * 20
 
-        if action == 2 and self.num_contracts == 0:
-            unreliazed_profit_loss -= 10
-        if action == 10:
-            unreliazed_profit_loss -= 100
-
+        # Update realized PNL
         if realizedPNL != 0:
             self.realized_profit_loss += realizedPNL
 
@@ -109,9 +108,20 @@ class Trader:
         self.max_loss = min(self.max_loss, self.realized_profit_loss)
         self.total_value = self.capital + self.profit
 
-        # print(f'Trade: {self.num_trades}, last close price: {close_price}, previous close price: {previous_close_price}, Action: {Action}, prices differences: { close_price - previous_close_price}; Unrealized Profit/Loss: {round(self.unreliazed_profit_loss,2)}, Realized PNL: {round(self.realized_profit_loss,2)}, Total PNL: {round(self.realized_profit_loss+self.unreliazed_profit_loss,2)}, Account NQ contracts holding = {self.num_contracts}, Account cash balance = {round(self.cash,2)}, Account total value = {round(self.total_value,2)} \n')
-
-        return self.profit
+        # print(f'Trade: {self.num_trades}, last close price: {close_price},  Action: {Action}, Unrealized Profit/Loss: {round(self.unreliazed_profit_loss,2)}, Realized PNL: {round(self.realized_profit_loss,2)}, Total PNL: {round(self.realized_profit_loss+self.unreliazed_profit_loss,2)}, Account NQ contracts holding = {self.num_contracts}, Account cash balance = {round(self.cash,2)}, Account total value = {round(self.total_value,2)} \n')
+        
+        
+        if job=='train':
+            # Penalize the model if it does not perform any action while not holding a position
+            if action == 2 and self.num_contracts == 0:
+                unreliazed_profit_loss = -10
+                
+            # Penalize the model if does a wrong action
+            if action == 10:
+                unreliazed_profit_loss = -2000
+                action = 2
+                
+        return round(unreliazed_profit_loss,2)
 
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate number of contracts to trade using Kelly Criterion"""

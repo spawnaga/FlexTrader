@@ -20,12 +20,11 @@ import sys
 # Start the asyncio event loop
 
 class Memory:
-    def __init__(self, max_size=100):
-        if not hasattr(self, 'buffer'):
-            self.buffer = []
-        else:
-            if self.buffer is None:
-                self.buffer = []
+    def __init__(self, task=None, max_size=100):
+        # if not hasattr(self, task):
+        #     return
+        # else:
+        self.buffer = []
         if not hasattr(self, 'priorities'):
             self.priorities = []
         else:
@@ -71,7 +70,7 @@ class MultiTask:
         if task == 'dqn':
             # Initialize DQN model
             self.dqn_model = self._build_model(action_size)
-            self.dqn_memory = Memory(max_size=50000)
+            self.dqn_memory = Memory(task,max_size=50000)
             self.dqn_gamma = 0.95
             self.dqn_epsilon = self.epsilon
             self.dqn_epsilon_min = 0.2
@@ -81,7 +80,7 @@ class MultiTask:
             # Initialize DDQN model
             self.ddqn_model = self._build_model(action_size)
             self.ddqn_target_model = self._build_model(action_size)
-            self.ddqn_memory = Memory(max_size=50000)
+            self.ddqn_memory = Memory(task,max_size=50000)
             self.ddqn_gamma = 0.95
             self.ddqn_epsilon = self.epsilon
             self.ddqn_epsilon_min = 0.2
@@ -90,7 +89,7 @@ class MultiTask:
         elif task == 'actor_critic':
             # Initialize actor-critic model
             self.actor_critic_model = self._build_model(action_size)
-            self.actor_critic_memory = Memory(max_size=50000)
+            self.actor_critic_memory = Memory(task,max_size=50000)
             self.actor_critic_gamma = 0.95
             self.actor_critic_alpha = 0.001
             self.actor_critic_alpha_decay = 0.995
@@ -102,7 +101,7 @@ class MultiTask:
             # Initialize PPO model
             self.policy_gradient_learning_rate = 0.001
             self.policy_gradient_model = self._build_model(action_size)
-            self.policy_gradient_memory = Memory(max_size=50000)
+            self.policy_gradient_memory = Memory(task,max_size=50000)
             self.policy_gradient_gamma = 0.95
             self.policy_gradient_epsilon = self.epsilon
             self.policy_gradient_alpha_decay = 0.995
@@ -259,7 +258,7 @@ class MultiTask:
     # @tf.function(experimental_relax_shapes=True)
     def act(self, state, task, job='test'):
         """Method for getting the next action for the agent to take"""
-        state = self.normalize_data(state)
+        # state = self.normalize_data(state)
 
         if task == 'dqn':
             if job == 'train' and np.random.rand() <= self.dqn_epsilon:
@@ -267,8 +266,8 @@ class MultiTask:
                 self.dqn_epsilon = max(self.dqn_epsilon, self.dqn_epsilon_min)
                 print('random')
                 return random.randrange(self.action_size)
-            q_values = self.dqn_model.predict(state)
-            return np.argmax(q_values[0])
+            q_values = self.dqn_model.predict(state).reshape(-1)
+            return np.argmax(q_values)
 
         elif task == 'ddqn':
             if job == 'train' and np.random.rand() <= self.ddqn_epsilon:
@@ -276,8 +275,8 @@ class MultiTask:
                 self.ddqn_epsilon = max(self.ddqn_epsilon, self.ddqn_epsilon_min)
                 print('random')
                 return random.randrange(self.action_size)
-            q_values = self.ddqn_model.predict(state)
-            return np.argmax(q_values[0])
+            q_values = self.ddqn_model.predict(state).reshape(-1)
+            return np.argmax(q_values)
 
         if task == 'actor_critic':
             if job == 'train':
@@ -286,7 +285,7 @@ class MultiTask:
                 if np.random.rand() <= self.actor_critic_epsilon:
                     print('random')
                     return random.randrange(self.action_size)
-            probs = self.actor_critic_model.predict(state)[0]
+            probs = self.actor_critic_model.predict(state).reshape(-1)
             return np.argmax(probs)
 
         elif task == 'policy_gradient':
@@ -296,7 +295,7 @@ class MultiTask:
                 if np.random.rand() <= self.policy_gradient_epsilon:
                     print('random')
                     return random.randrange(self.action_size)
-            probs = self.policy_gradient_model.predict(state)[0]
+            probs = self.policy_gradient_model.predict(state).reshape(-1)
             return np.argmax(probs)
 
     def load(self, name, task, folder_name='model1'):
@@ -357,6 +356,15 @@ class MultiTask:
             corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.policy_gradient_model)
             if corrupted:
                 self.save(name, task)
+
+    def check_pickle_size(self, pickle_file, original_data):
+        # Use to check if trained model is bigger that the trained model
+        pickle_size = os.path.getsize(pickle_file)
+        original_size = sys.getsizeof(original_data)
+        if pickle_size < original_size:
+            return True
+        else:
+            return False
 
     def verify_pickle(self, pickle_file, original_data):
         # Use to verify if saving pickle file went fine

@@ -34,6 +34,7 @@ def train(task):
     current_batch_size_level = 0
     current_iteration = 0
     batch_size = 10
+    job='train'
 
     while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
         # start first iteration
@@ -62,11 +63,12 @@ def train(task):
             if done:
                 break
             if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
-                current_batch_size_level]:
+                current_batch_size_level] :
                 batch_size = int(len(df) * levels[current_batch_size_level])
                 print(
                     f'Level {list(levels.keys())[current_batch_size_level] - 1} is done. Batch size now is {batch_size} ({levels[current_batch_size_level] * 100}% of the data)')
-                current_batch_size_level += 1
+                if current_batch_size_level <= next(reversed(levels.items()))[0]-1:
+                    current_batch_size_level += 1
 
             # Get nextstate value
             next_state = market.get_state(i + 1)
@@ -75,7 +77,7 @@ def train(task):
             action = agent.act(state=state, task=task, job='train')
             print(f'iterate {i} of {task} yielded {action}')
             # Execute the trade and get the reward
-            reward = trader.trade(action, row)
+            reward = trader.trade(action, row, job)
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -107,12 +109,12 @@ def train(task):
                 gc.collect()
             # Print progress
             print(
-                f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
+                f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}  and trade's reward is {reward}")
     return trader.total_value - trader.capital
 
 
 if __name__ == '__main__':
-    # results=train(task="dqn")
+    # results = train(task="policy_gradient")
     with Pool(4) as p:
         results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
