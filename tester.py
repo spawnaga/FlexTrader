@@ -78,7 +78,7 @@ def test(task):
 
 
 if __name__ == '__main__':
-    # for i in range(10):
-    with Pool(4) as p:
-        results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
-        print(results)
+    results = test(task="actor_critic")
+    # with Pool(4) as p:
+    #     results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+    #     print(results)

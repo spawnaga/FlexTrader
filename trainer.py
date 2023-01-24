@@ -33,7 +33,7 @@ def train(task):
     rolling_average = []
     current_batch_size_level = 0
     current_iteration = 0
-    batch_size = 0
+    batch_size = 10
 
     while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
         # start first iteration
@@ -100,10 +100,11 @@ def train(task):
                 "policy_gradient": agent.replay_policy_gradient
             }
             replay_functions[task](batch_size)
-            # Save the update agents
-            agent.save('trial1', task)
-            # Garbage data disposal
-            gc.collect()
+            if i % 50 == 0:
+                # Save the update agents
+                agent.save('trial1', task)
+                # Garbage data disposal
+                gc.collect()
             # Print progress
             print(
                 f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
@@ -111,8 +112,7 @@ def train(task):
 
 
 if __name__ == '__main__':
-    # results=train(task="policy_gradient")
-    # # for i in range(10):
+    # results=train(task="dqn")
     with Pool(4) as p:
         results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)

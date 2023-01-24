@@ -14,6 +14,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 import pickle
+import sys
 
 
 # Start the asyncio event loop
@@ -299,22 +300,25 @@ class MultiTask:
             return np.argmax(probs)
 
     def load(self, name, task, folder_name='model1'):
-        if task == 'dqn':
-            self.dqn_model.load_weights(os.path.join(folder_name, f'{name}_dqn.h5'))
-            with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
-                self.dqn_memory = pickle.load(f)
-        elif task == 'ddqn':
-            self.ddqn_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
-            with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
-                self.ddqn_memory = pickle.load(f)
-        elif task == 'actor_critic':
-            self.actor_critic_model.load_weights(os.path.join(folder_name, f'{name}_actor_critic.h5'))
-            with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
-                self.actor_critic_memory = pickle.load(f)
-        elif task == 'policy_gradient':
-            self.policy_gradient_model.load_weights(os.path.join(folder_name, f'{name}_policy_gradient.h5'))
-            with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
-                self.policy_gradient_memory = pickle.load(f)
+        if os.path.exists(folder_name):
+            if task == 'dqn' and os.path.exists(f'{name}_ddqn.h5'):
+                self.dqn_model.load_weights(os.path.join(folder_name, f'{name}_dqn.h5'))
+                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                    self.dqn_memory = pickle.load(f)
+            elif task == 'ddqn' and os.path.exists(f'{name}_dqn.h5'):
+                self.ddqn_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
+                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                    self.ddqn_memory = pickle.load(f)
+            elif task == 'actor_critic' and os.path.exists(f'{name}_actor_critic.h5'):
+                self.actor_critic_model.load_weights(os.path.join(folder_name, f'{name}_actor_critic.h5'))
+                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                    self.actor_critic_memory = pickle.load(f)
+            elif task == 'policy_gradient' and os.path.exists(f'{name}_policy_gradient.h5'):
+                self.policy_gradient_model.load_weights(os.path.join(folder_name, f'{name}_policy_gradient.h5'))
+                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                    self.policy_gradient_memory = pickle.load(f)
+        else:
+            return
 
     def save(self, name, task, folder_name='model1'):
         # Check if the folder already exists
@@ -325,18 +329,46 @@ class MultiTask:
             self.dqn_model.save_weights(os.path.join(folder_name, f'{name}_dqn.h5'))
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.dqn_memory, f)
+            # Verify if saving memory went right and the file is not corrupted
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.dqn_memory)
+            if corrupted:
+                self.save(name, task)
         elif task == 'ddqn':
             self.ddqn_model.save_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.ddqn_memory, f)
+            # Verify if saving memory went right and the file is not corrupted
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.ddqn_memory)
+            if corrupted:
+                self.save(name, task)
         elif task == 'actor_critic':
             self.actor_critic_model.save_weights(os.path.join(folder_name, f'{name}_actor_critic.h5'))
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.actor_critic_memory, f)
+            # Verify if saving memory went right and the file is not corrupted
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.actor_critic_memory)
+            if corrupted:
+                self.save(name, task)
         elif task == 'policy_gradient':
             self.policy_gradient_model.save_weights(os.path.join(folder_name, f'{name}_policy_gradient.h5'))
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.policy_gradient_memory, f)
+            # Verify if saving memory went right and the file is not corrupted
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.policy_gradient_model)
+            if corrupted:
+                self.save(name, task)
+
+    def verify_pickle(self, pickle_file, original_data):
+        # Use to verify if saving pickle file went fine
+        pickle_size = os.path.getsize(pickle_file)
+        original_size = sys.getsizeof(original_data)
+
+        if pickle_size < original_size:
+            print("The pickle file might be corrupted.")
+            return True
+        else:
+            print("The pickle file is valid.")
+            return False
 
     def normalize_data(self, data):
         # Create a StandardScaler object
