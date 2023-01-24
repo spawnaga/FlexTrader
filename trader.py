@@ -41,12 +41,11 @@ class Trader:
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
         return win_loss_ratio - (1 - win_loss_ratio) / (avg_profit / 20)
 
-    def trade(self, action, market, i, row, previous_row):
+    def trade(self, action, row):
         """Execute a trade based on the current market state and the output of the model"""
         realizedPNL = 0
         # Get close price from Market object
         close_price = row['close']
-        previous_close_price = previous_row['close']
 
         # Calculate number of contracts to trade using fixed-fractional method
         if self.num_contracts == 0 and action == 0:
@@ -95,7 +94,7 @@ class Trader:
         unreliazed_profit_loss = self.num_contracts * (close_price - self.priceAtStart) * 20
 
         if action == 2 and self.num_contracts == 0:
-            unreliazed_profit_loss -= 1
+            unreliazed_profit_loss -= 10
         if action == 10:
             unreliazed_profit_loss -= 100
 

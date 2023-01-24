@@ -8,7 +8,6 @@ Created on Wed Jan 18 01:45:26 2023
 from collections import deque
 import matplotlib.pyplot as plt
 from trader import Trader, Market
-from ib_insync import ContFuture
 from agents import MultiTask
 import numpy as np
 from multiprocessing import Pool
@@ -17,7 +16,6 @@ import gc
 
 def train(task):
     # Initialize the Trader object and connect to the IB gateway
-    # print('*********')
     levels = {0: 0.005, 1: 0.01, 2: 0.02, 3: 0.03, 4: 0.04, 5: 0.05, 6: 0.1, 7: 0.15, 8: 0.2, 9: 0.25}
     trader = Trader()
 
@@ -33,7 +31,6 @@ def train(task):
     rolling_window = deque(maxlen=window_size)
     # Initialize the list to store the rolling average of the rewards, profits, iterations and batch size levels
     rolling_average = []
-    pnl = [0]
     current_batch_size_level = 0
     current_iteration = 0
     batch_size = 0
@@ -50,9 +47,7 @@ def train(task):
         state = market.get_state(0)
         state_size = state.shape[1]
 
-
-        agent = MultiTask(task=task, state=state, num_outputs_1=action_size, num_outputs_2=action_size,
-                          state_size=state_size, action_size=action_size)
+        agent = MultiTask(task=task, state=state, action_size=action_size, state_size=state_size, job='train')
         # Load saved trainings and memories from previous sessions
         if eval(f'agent.{task}_memory._size()') == 0:
             agent.load(name='trial1', task=task)
@@ -80,7 +75,7 @@ def train(task):
             action = agent.act(state=state, task=task, job='train')
             print(f'iterate {i} of {task} yielded {action}')
             # Execute the trade and get the reward
-            reward = trader.trade(action, market, i, row, previous_row)
+            reward = trader.trade(action, row)
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -112,7 +107,7 @@ def train(task):
             # Print progress
             print(
                 f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
-    return pnl
+    return trader.total_value - trader.capital
 
 
 if __name__ == '__main__':

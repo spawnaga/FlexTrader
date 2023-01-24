@@ -32,41 +32,30 @@ def test(task):
     # Initialize the list to store the rolling average of the rewards
     rolling_average = []
     # Update market data and get the DataFrame
-    pnl = [0]
-
-
-    # while not trader.profit >= 1000000*0.3 or not trader.num_trades >= 1000:
-    market = Market(trader,history_length=1)
+    market = Market(trader, history_length=1)
     market.update_data()
     df = market.get_df()
     state = market.get_state(0)
     state_size = state.shape[1]
-    agent = MultiTask(task="policy_gradient", state=state, num_outputs_1=action_size, num_outputs_2=action_size,
-                      state_size=state_size, action_size=action_size)
-    if not eval(f'agent.{task}_memory'):
-        agent.load(name= 'trial1', task= task)
+    agent = MultiTask(task=task, state=state, state_size=state_size, action_size=action_size, job='test')
+    if eval(f'agent.{task}_memory._size()') == 0:
+        agent.load(name='trial1', task=task)
 
-    # if agent.dqn_memory ==deque([]):
-    #     agent.load("trial1",task)
     for i, row in df.iterrows():
         if previous_row is None:
             previous_row = row
         done = i + 2 >= len(df)
         if done:
             break
-        if i>9935: 
-            
-            # Get the current and next states
-            next_state = market.get_state(i + 1)
-            state=next_state
-            action = agent.act(state=state, task="policy_gradient", job='train')
-            print(state)
-            print(action)
-            break
+
+        # Get nextstate value
+        next_state = market.get_state(i + 1)
+
         # Predict the action using the model
-        action = agent.act(state=state, task="policy_gradient", job='test')
+        action = agent.act(state=state, task=task, job='train')
+        print(f'iterate {i} of {task} yielded {action}')
         # Execute the trade and get the reward
-        reward = trader.trade(action, market, i, row, previous_row)
+        reward = trader.trade(action, row)
         # Append the total reward and number of steps for this episode to the lists
         rewards.append(reward)
         steps.append(i)
@@ -81,13 +70,11 @@ def test(task):
         # Set the current state to the next state
         state = next_state
 
-
-        plt.plot(rolling_average)
-
-
-        print(f"***************** iteration {i} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
+    # Create and plot a graph to show agent profits
+    plt.plot(rolling_average)
     plt.show()
-    return pnl
+    print(f'Agent performance in test session yielded ${round((trader.total_value - trader.capital), 2)} return')
+    return trader.total_value - trader.capital
 
 
 if __name__ == '__main__':
@@ -95,5 +82,3 @@ if __name__ == '__main__':
     with Pool(4) as p:
         results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
-
-
