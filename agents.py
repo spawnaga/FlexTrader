@@ -67,7 +67,7 @@ class MultiTask:
         if job == 'train':
             self.epsilon = 1.0
         else:
-            self.epsilon = 0
+            self.epsilon = -1
         if task == 'dqn':
             # Initialize DQN model
             self.dqn_model = self._build_model(action_size)

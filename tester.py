@@ -8,10 +8,10 @@ Created on Wed Jan 18 01:45:26 2023
 from collections import deque
 import matplotlib.pyplot as plt
 from trader import Trader, Market
-from ib_insync import ContFuture
 from agents import MultiTask
 import numpy as np
 from multiprocessing import Pool
+import gc
 
 
 def test(task):
@@ -70,6 +70,9 @@ def test(task):
         # Set the current state to the next state
         state = next_state
 
+        # Garbage data disposal
+        gc.collect()
+
     # Create and plot a graph to show agent profits
     plt.plot(rolling_average)
     plt.show()
@@ -78,7 +81,7 @@ def test(task):
 
 
 if __name__ == '__main__':
-    results = test(task="actor_critic")
-    # with Pool(4) as p:
-    #     results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
-    #     print(results)
+    # results = test(task="actor_critic")
+    with Pool(4) as p:
+        results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+        print(results)
