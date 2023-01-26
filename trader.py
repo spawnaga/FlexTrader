@@ -161,12 +161,12 @@ class Trader:
             if state == "long" and time_since_last_action < 3:  # last action was also long trade and taken less than 5 minutes ago
                 return -100  # penalty for repeated action
             else:
-                return 200  # increased reward for starting a trade
+                return 100  # increased reward for starting a trade
         elif action == 1:  # start short trade
             if state == "short" and time_since_last_action < 3:  # last action was also short trade and taken less than 5 minutes ago
                 return -100  # penalty for repeated action
             else:
-                return 200
+                return 100
         elif action == 2:  # hold trade
             if state == "hold":  # not holding any position
                 return -25  # punishment for holding without any positions

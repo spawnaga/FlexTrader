@@ -69,7 +69,8 @@ class MultiTask:
             self.epsilon = -1
         if task == 'dqn':
             # Initialize DQN model
-            self.dqn_model = self._build_model(action_size, layers)
+            self.dqn_learning_rate = 0.1
+            self.dqn_model = self._build_model(action_size, self.dqn_learning_rate, layers)
             self.dqn_memory = Memory(task, max_size=50000)
             self.dqn_gamma = 0.95
             self.dqn_epsilon = self.epsilon
@@ -78,17 +79,19 @@ class MultiTask:
             self.dqn_learning_rate = 0.001
         elif task == 'ddqn':
             # Initialize DDQN model
-            self.ddqn_model = self._build_model(action_size, layers)
+            self.ddqn_learning_rate = 0.1
+            self.ddqn_model = self._build_model(action_size, self.ddqn_learning_rate, layers)
             self.ddqn_target_model = self._build_model(action_size, layers)
             self.ddqn_memory = Memory(task, max_size=50000)
             self.ddqn_gamma = 0.95
             self.ddqn_epsilon = self.epsilon
             self.ddqn_epsilon_min = 0.2
             self.ddqn_epsilon_decay = 0.995
-            self.ddqn_learning_rate = 0.001
+
         elif task == 'actor_critic':
             # Initialize actor-critic model
-            self.actor_critic_model = self._build_model(action_size, layers)
+            self.actor_critic_learning_rate = 0.1
+            self.actor_critic_model = self._build_model(action_size, self.actor_critic_learning_rate, layers)
             self.actor_critic_memory = Memory(task, max_size=50000)
             self.actor_critic_gamma = 0.95
             self.actor_critic_alpha = 0.001
@@ -99,15 +102,15 @@ class MultiTask:
             self.actor_critic_epsilon_min = 0.2
         elif task == 'policy_gradient':
             # Initialize PPO model
-            self.policy_gradient_learning_rate = 0.01
-            self.policy_gradient_model = self._build_model(action_size, layers)
+            self.policy_gradient_learning_rate = 0.1
+            self.policy_gradient_model = self._build_model(action_size, self.policy_gradient_learning_rate, layers=6)
             self.policy_gradient_memory = Memory(task, max_size=50000)
             self.policy_gradient_gamma = 0.95
             self.policy_gradient_epsilon = self.epsilon
             self.policy_gradient_alpha_decay = 0.995
             self.policy_gradient_alpha_min = 0.2
 
-    def _build_model(self, num_outputs, layers=2):
+    def _build_model(self, num_outputs, learning_rate, layers=2):
         # Define the input layer
         input_layer = Input((self.state_size,))
         x = input_layer
@@ -123,8 +126,14 @@ class MultiTask:
         # Create the model
         model = Model(inputs=input_layer, outputs=output)
 
+        # Learning rate scheduler
+        boundaries = [100, 200, 500, 1000, 3000]
+        values = [0.1, 0.01, 0.005, 0.001, 0.0005, 0.0001]
+        lr_schedule = tf.optimizers.schedules.PiecewiseConstantDecay(
+            boundaries, values)
+
         # Compile the model
-        model.compile(optimizer=Adam(learning_rate=0.01), loss='categorical_crossentropy')
+        model.compile(optimizer=Adam(learning_rate=lr_schedule), loss='categorical_crossentropy')
 
         return model
 
@@ -249,10 +258,9 @@ class MultiTask:
             # Compute the negative log likelihood of the actions taken
             negative_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                               labels=tf.one_hot(actions, 5))
-
             # Compute the loss as the mean of the negative log likelihood
             loss = tf.reduce_mean(negative_log_likelihood * advantages)
-            # print('policy_gradient loss is', loss.numpy().item())
+
         # Compute the gradients of the loss with respect to the model's trainable weights
         grads = tape.gradient(loss, self.policy_gradient_model.trainable_weights)
         # Apply the gradients to the model's optimizer

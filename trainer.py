@@ -35,8 +35,6 @@ def train(task):
     current_batch_size_level = 0
     current_iteration = 0
     batch_size = 10
-    job = 'train'
-    last_action_time = time.time()
 
     while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
         # start first iteration
@@ -67,7 +65,9 @@ def train(task):
                 current_batch_size_level]:
                 batch_size = int(len(df) * levels[current_batch_size_level])
                 print(
-                    f'Level {list(levels.keys())[current_batch_size_level] - 1} is done. Batch size now is {batch_size} ({levels[current_batch_size_level] * 100}% of the data)')
+                    f'Level {list(levels.keys())[current_batch_size_level]} is done. Batch size now is {batch_size} '
+                    f'({levels[current_batch_size_level] * 100}% of the data)')
+
                 if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
                     current_batch_size_level += 1
             # Get nextstate value
@@ -82,17 +82,12 @@ def train(task):
             steps.append(i)
             agent.add_to_memory(task, state, action, reward, next_state, done)
             # if i>35: break
-
             rolling_window.append(trader.realized_profit_loss)
-
             # Calculate the rolling average of the rewards and append it to the list
             rolling_average.append(np.mean(rolling_window))
-
             # Set the current state to the next state
-            state = next_state
-
             plt.plot(rolling_average)
-
+            previous_row = row
             # Update learning of models
             replay_functions = {
                 "dqn": agent.replay_dqn,
@@ -108,12 +103,13 @@ def train(task):
                 gc.collect()
                 # Print progress
                 print(
-                    f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
+                    f"***************** Episode {current_iteration} of {task} final account was {trader.total_value}"
+                    f" which is a total profit/loss of {trader.total_value - trader.capital}")
     return trader.total_value - trader.capital
 
 
 if __name__ == '__main__':
-    # results = train(task="ddqn")
-    with Pool(16) as p:
-        results = [p.map(train, ['ddqn'])]#, 'ddqn', 'actor_critic', 'policy_gradient'])]
+    # results = train(task="policy_gradient")
+    with Pool(4) as p:
+        results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
