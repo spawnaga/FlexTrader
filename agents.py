@@ -58,7 +58,7 @@ class Memory:
 
 
 class MultiTask:
-    def __init__(self, task, state, state_size, action_size, job='test'):
+    def __init__(self, task, state, state_size, action_size, job='test', layers=5):
         self.state = state
         self.state_size = state_size
         self.action_size = action_size
@@ -69,8 +69,8 @@ class MultiTask:
             self.epsilon = -1
         if task == 'dqn':
             # Initialize DQN model
-            self.dqn_model = self._build_model(action_size)
-            self.dqn_memory = Memory(task,max_size=50000)
+            self.dqn_model = self._build_model(action_size, layers)
+            self.dqn_memory = Memory(task, max_size=50000)
             self.dqn_gamma = 0.95
             self.dqn_epsilon = self.epsilon
             self.dqn_epsilon_min = 0.2
@@ -78,9 +78,9 @@ class MultiTask:
             self.dqn_learning_rate = 0.001
         elif task == 'ddqn':
             # Initialize DDQN model
-            self.ddqn_model = self._build_model(action_size)
-            self.ddqn_target_model = self._build_model(action_size)
-            self.ddqn_memory = Memory(task,max_size=50000)
+            self.ddqn_model = self._build_model(action_size, layers)
+            self.ddqn_target_model = self._build_model(action_size, layers)
+            self.ddqn_memory = Memory(task, max_size=50000)
             self.ddqn_gamma = 0.95
             self.ddqn_epsilon = self.epsilon
             self.ddqn_epsilon_min = 0.2
@@ -88,8 +88,8 @@ class MultiTask:
             self.ddqn_learning_rate = 0.001
         elif task == 'actor_critic':
             # Initialize actor-critic model
-            self.actor_critic_model = self._build_model(action_size)
-            self.actor_critic_memory = Memory(task,max_size=50000)
+            self.actor_critic_model = self._build_model(action_size, layers)
+            self.actor_critic_memory = Memory(task, max_size=50000)
             self.actor_critic_gamma = 0.95
             self.actor_critic_alpha = 0.001
             self.actor_critic_alpha_decay = 0.995
@@ -100,27 +100,25 @@ class MultiTask:
         elif task == 'policy_gradient':
             # Initialize PPO model
             self.policy_gradient_learning_rate = 0.01
-            self.policy_gradient_model = self._build_model(action_size)
-            self.policy_gradient_memory = Memory(task,max_size=50000)
+            self.policy_gradient_model = self._build_model(action_size, layers)
+            self.policy_gradient_memory = Memory(task, max_size=50000)
             self.policy_gradient_gamma = 0.95
             self.policy_gradient_epsilon = self.epsilon
             self.policy_gradient_alpha_decay = 0.995
             self.policy_gradient_alpha_min = 0.2
 
-    def _build_model(self, num_outputs_2):
+    def _build_model(self, num_outputs, layers=2):
         # Define the input layer
         input_layer = Input((self.state_size,))
         x = input_layer
 
         # Define the hidden layers using CuDNNLSTM
         x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
-        x = CuDNNLSTM(100, return_sequences=True)(x)
-        x = CuDNNLSTM(50, return_sequences=True)(x)
-        x = CuDNNLSTM(25, return_sequences=True)(x)
-        x = CuDNNLSTM(10, return_sequences=True)(x)
+        for _ in range(layers):
+            x = CuDNNLSTM(100, return_sequences=True)(x)  # number of hidden layers
 
         # Define the output layers for the first and second tasks
-        output = Dense(num_outputs_2, activation='softmax')(x)
+        output = Dense(num_outputs, activation='softmax')(x)
 
         # Create the model
         model = Model(inputs=input_layer, outputs=output)
@@ -346,7 +344,8 @@ class MultiTask:
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.actor_critic_memory, f)
             # Verify if saving memory went right and the file is not corrupted
-            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.actor_critic_memory)
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'),
+                                           self.actor_critic_memory)
             if corrupted:
                 self.save(name, task)
         elif task == 'policy_gradient':
@@ -354,7 +353,8 @@ class MultiTask:
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.policy_gradient_memory, f)
             # Verify if saving memory went right and the file is not corrupted
-            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), self.policy_gradient_model)
+            corrupted = self.verify_pickle(os.path.join(folder_name, f'{name}_{task}_memory.pickle'),
+                                           self.policy_gradient_model)
             if corrupted:
                 self.save(name, task)
 
