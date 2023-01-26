@@ -169,17 +169,17 @@ class Trader:
                 return 200
         elif action == 2:  # hold trade
             if state == "hold":  # not holding any position
-                return -50  # punishment for holding without any positions
+                return -25  # punishment for holding without any positions
             elif state == "long":
                 if price > previous_price:
                     return 100  # increased reward for profitable trade
                 else:
-                    return -25
+                    return -50
             elif state == "short":
                 if price < previous_price:
                     return 100
                 else:
-                    return -25
+                    return -50
         elif action == 3:  # close long trade
             if state == "close" and time_since_last_action > 3:  # last action was also long trade and taken less than 5 minutes ago
                 return 50
