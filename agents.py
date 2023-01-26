@@ -305,6 +305,7 @@ class MultiTask:
                     self.dqn_memory = pickle.load(f)
             elif task == 'ddqn' and os.path.exists(f'{name}_dqn.h5'):
                 self.ddqn_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
+                self.ddqn_target_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
                 with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
                     self.ddqn_memory = pickle.load(f)
             elif task == 'actor_critic' and os.path.exists(f'{name}_actor_critic.h5'):
@@ -333,6 +334,7 @@ class MultiTask:
                 self.save(name, task)
         elif task == 'ddqn':
             self.ddqn_model.save_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
+            self.ddqn_target_model.save_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
             with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'wb') as f:
                 pickle.dump(self.ddqn_memory, f)
             # Verify if saving memory went right and the file is not corrupted
