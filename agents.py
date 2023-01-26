@@ -269,7 +269,6 @@ class MultiTask:
             if job == 'train' and np.random.rand() <= self.dqn_epsilon:
                 self.dqn_epsilon *= self.dqn_epsilon_decay
                 self.dqn_epsilon = max(self.dqn_epsilon, self.dqn_epsilon_min)
-                print('random')
                 return random.randrange(self.action_size)
             q_values = self.dqn_model.predict(state).reshape(-1)
             return np.argmax(q_values)
@@ -278,7 +277,6 @@ class MultiTask:
             if job == 'train' and np.random.rand() <= self.ddqn_epsilon:
                 self.ddqn_epsilon *= self.ddqn_epsilon_decay
                 self.ddqn_epsilon = max(self.ddqn_epsilon, self.ddqn_epsilon_min)
-                print('random')
                 return random.randrange(self.action_size)
             q_values = self.ddqn_model.predict(state).reshape(-1)
             return np.argmax(q_values)
@@ -288,7 +286,6 @@ class MultiTask:
                 self.actor_critic_epsilon *= self.actor_critic_epsilon_decay
                 self.actor_critic_epsilon = max(self.actor_critic_epsilon, self.actor_critic_epsilon_min)
                 if np.random.rand() <= self.actor_critic_epsilon:
-                    print('random')
                     return random.randrange(self.action_size)
             probs = self.actor_critic_model.predict(state).reshape(-1)
             return np.argmax(probs)
@@ -298,7 +295,6 @@ class MultiTask:
                 self.policy_gradient_epsilon *= self.policy_gradient_alpha_decay
                 self.policy_gradient_epsilon = max(self.policy_gradient_epsilon, self.policy_gradient_alpha_min)
                 if np.random.rand() <= self.policy_gradient_epsilon:
-                    print('random')
                     return random.randrange(self.action_size)
             probs = self.policy_gradient_model.predict(state).reshape(-1)
             return np.argmax(probs)
@@ -377,10 +373,8 @@ class MultiTask:
         original_size = sys.getsizeof(original_data)
 
         if pickle_size < original_size:
-            print("The pickle file might be corrupted.")
             return True
         else:
-            print("The pickle file is valid.")
             return False
 
     def normalize_data(self, data):

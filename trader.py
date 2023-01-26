@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 import pandas as pd
 from ib_insync import *
+import time
 
 util.startLoop()
 
@@ -39,20 +40,22 @@ class Trader:
         self.penalty = 1000
         self.expon = 1.05
         self.hold_penalty = -100
+        self.last_action_time = 0
 
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
         return win_loss_ratio - (1 - win_loss_ratio) / (avg_profit / 20)
 
-    def trade(self, action, row, previous_row, job='test'):
+    def trade(self, action, row, previous_row, i):
         """Execute a trade based on the current market state and the output of the model"""
-        global Action
+
         realizedPNL = 0
         # Get close price from Market object
         close_price = row['close']
-
+        action_time = self.last_action_time
         # Calculate number of contracts to trade using fixed-fractional method
         if self.num_contracts <= 0 and action == 0:
+            action_time = i
             if self.num_contracts < 0:
                 self.priceAtClose = close_price
                 Action = "close short and start long position"
@@ -68,10 +71,8 @@ class Trader:
             self.cash = self.cash - abs(self.num_contracts * close_price * 20)
             self.priceAtStart = close_price
             self.num_trades += 1
-
-            self.penalty = 10000
-            self.hold_penalty = -100
         elif self.num_contracts >= 0 and action == 1:
+            action_time = i
             if self.num_contracts > 0:
                 self.priceAtClose = close_price
                 Action = "close long and start short position"
@@ -87,9 +88,6 @@ class Trader:
             self.cash = abs(-1 * self.cash - self.num_contracts * close_price * 20)
             self.priceAtStart = close_price
             self.num_trades += 1
-
-            self.penalty = 10000
-            self.hold_penalty = -100
         elif self.num_contracts > 0 and action == 3:
             self.priceAtClose = close_price
             Action = "close"
@@ -100,7 +98,6 @@ class Trader:
                 self.num_wins += 1
             else:
                 self.num_losses += 1
-            self.penalty = 10000
         elif self.num_contracts < 0 and action == 4:
             self.priceAtClose = close_price
             Action = "close"
@@ -111,13 +108,29 @@ class Trader:
                 self.num_wins += 1
             else:
                 self.num_losses += 1
-            self.penalty = 10000
         elif self.num_contracts == 0 and action == 2:
             Action = "hold"
+        elif action == 2:
+            Action = "long" if self.num_contracts > 0 else "short"
         else:
-            Action = "invalid"
+            # action is "invalid"
+            print(
+                f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
+                f'Action = invalid, rewards = -200')
+            return -200  # punishment for invalid action
 
-        rewards = self.calculate_rewards(Action, row['close'], previous_row['close'], action)
+        rewards = self.calculate_rewards(Action, row['close'], previous_row['close'], action, i, self.last_action_time)
+        print(
+            f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
+            f'Action = {Action}, rewards = {rewards}')
+
+        # Calculate profit or loss of trade
+        self.account_value(close_price, realizedPNL)
+
+        self.last_action_time = action_time
+        return rewards
+
+    def account_value(self, close_price, realizedPNL):
         # Calculate profit or loss of trade
         unreliazed_profit_loss = self.num_contracts * (close_price - self.priceAtStart) * 20
 
@@ -133,10 +146,6 @@ class Trader:
         self.max_loss = min(self.max_loss, self.realized_profit_loss)
         self.total_value = self.capital + self.profit
 
-        print(f'trade+ {self.num_trades} agent is holding {self.num_contracts}')
-
-        return rewards
-
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate number of contracts to trade using Kelly Criterion"""
         f = win_loss_ratio - 1
@@ -146,13 +155,18 @@ class Trader:
         kelly_criterion = f / b
         return kelly_criterion
 
-    def calculate_rewards(self, state, price, previous_price, action):
-        if state == 'invalid':
-            return -200  # punishment for invalid action
+    def calculate_rewards(self, state, price, previous_price, action, iteration, last_action_time):
+        time_since_last_action = iteration - last_action_time
         if action == 0:  # start long trade
-            return 200  # increased reward for starting a trade
+            if state == "long" and time_since_last_action < 3:  # last action was also long trade and taken less than 5 minutes ago
+                return -50  # penalty for repeated action
+            else:
+                return 200  # increased reward for starting a trade
         elif action == 1:  # start short trade
-            return 200
+            if state == "short" and time_since_last_action < 3:  # last action was also short trade and taken less than 5 minutes ago
+                return -50  # penalty for repeated action
+            else:
+                return 200
         elif action == 2:  # hold trade
             if state == "hold":  # not holding any position
                 return -50  # punishment for holding without any positions
@@ -160,22 +174,22 @@ class Trader:
                 if price > previous_price:
                     return 100  # increased reward for profitable trade
                 else:
-                    return -50
+                    return -25
             elif state == "short":
                 if price < previous_price:
                     return 100
                 else:
-                    return -50
+                    return -25
         elif action == 3:  # close long trade
-            if state == "long":
+            if state == "close" and time_since_last_action > 3:  # last action was also long trade and taken less than 5 minutes ago
                 return 50
             else:
-                return -100  # punishment for invalid action
+                return -25  # punishment for frequent closing actions
         elif action == 4:  # close short trade
-            if state == "short":
+            if state == "close" and time_since_last_action > 3:  # last action was also short trade and taken less than 5 minutes ago
                 return 50
             else:
-                return -100
+                return -25  # punishment for frequent closing actions
 
 
 class Market:

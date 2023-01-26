@@ -12,6 +12,7 @@ from agents import MultiTask
 import numpy as np
 from multiprocessing import Pool
 import gc
+import time
 
 
 def train(task):
@@ -35,6 +36,7 @@ def train(task):
     current_iteration = 0
     batch_size = 10
     job = 'train'
+    last_action_time = time.time()
 
     while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
         # start first iteration
@@ -73,9 +75,8 @@ def train(task):
             state = next_state
             # Predict the action using the model
             action = agent.act(state=state, task=task, job='train')
-            print(f'iterate {i} of {task} yielded {action}')
             # Execute the trade and get the reward
-            reward = trader.trade(action, row, previous_row, job)
+            reward = trader.trade(action, row, previous_row, i)
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -105,14 +106,14 @@ def train(task):
                 agent.save('trial1', task)
                 # Garbage data disposal
                 gc.collect()
-            # Print progress
-            print(
-                f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}  and trade's reward is {reward}")
+                # Print progress
+                print(
+                    f"***************** Episode {current_iteration} of {task} final account was {trader.total_value} which is a total profit/loss of {trader.total_value - trader.capital}")
     return trader.total_value - trader.capital
 
 
 if __name__ == '__main__':
     # results = train(task="dqn")
-    with Pool(4) as p:
-        results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+    with Pool(16) as p:
+        results = [p.map(train, ['dqn'])]#, 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
