@@ -113,7 +113,7 @@ def train(task):
 
 
 if __name__ == '__main__':
-    # results = train(task="dqn")
+    # results = train(task="ddqn")
     with Pool(16) as p:
-        results = [p.map(train, ['dqn'])]#, 'ddqn', 'actor_critic', 'policy_gradient'])]
+        results = [p.map(train, ['ddqn'])]#, 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)

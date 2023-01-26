@@ -55,7 +55,7 @@ def test(task):
         action = agent.act(state=state, task=task, job='test')
         print(f'iterate {i} of {task} yielded {action}')
         # Execute the trade and get the reward
-        reward = trader.trade(action, row, job='test')
+        reward = trader.trade(action, row, previous_row, i)
         rewards.append(reward)
         steps.append(i)
 
@@ -78,7 +78,7 @@ def test(task):
 
 
 if __name__ == '__main__':
-    results = test(task="policy_gradient")
+    results = test(task="dqn")
     # with Pool(4) as p:
     #     results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
     #     print(results)
