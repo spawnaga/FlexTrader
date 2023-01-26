@@ -58,7 +58,6 @@ def test(task):
         reward = trader.trade(action, row, job='test')
         rewards.append(reward)
         steps.append(i)
-        if i>35: break
 
         rolling_window.append(trader.realized_profit_loss)
 

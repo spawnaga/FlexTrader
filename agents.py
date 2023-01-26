@@ -99,7 +99,7 @@ class MultiTask:
             self.actor_critic_epsilon_min = 0.2
         elif task == 'policy_gradient':
             # Initialize PPO model
-            self.policy_gradient_learning_rate = 0.001
+            self.policy_gradient_learning_rate = 0.01
             self.policy_gradient_model = self._build_model(action_size)
             self.policy_gradient_memory = Memory(task,max_size=50000)
             self.policy_gradient_gamma = 0.95
@@ -114,8 +114,10 @@ class MultiTask:
 
         # Define the hidden layers using CuDNNLSTM
         x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
-        x = CuDNNLSTM(24, return_sequences=True)(x)
-        x = CuDNNLSTM(8, return_sequences=True)(x)
+        x = CuDNNLSTM(100, return_sequences=True)(x)
+        x = CuDNNLSTM(50, return_sequences=True)(x)
+        x = CuDNNLSTM(25, return_sequences=True)(x)
+        x = CuDNNLSTM(10, return_sequences=True)(x)
 
         # Define the output layers for the first and second tasks
         output = Dense(num_outputs_2, activation='softmax')(x)
@@ -124,7 +126,7 @@ class MultiTask:
         model = Model(inputs=input_layer, outputs=output)
 
         # Compile the model
-        model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy')
+        model.compile(optimizer=Adam(learning_rate=0.01), loss='categorical_crossentropy')
 
         return model
 
@@ -241,8 +243,11 @@ class MultiTask:
             # Forward pass of the model
             logits = self.policy_gradient_model(states.squeeze())
             logits = tf.reshape(logits, (-1, 5))
+            log_probs = tf.nn.log_softmax(logits)
+
             # Sample actions from the policy
-            actions = tf.random.categorical(logits, 1)
+            actions = tf.random.categorical(log_probs, 1)
+
             # Compute the negative log likelihood of the actions taken
             negative_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
                                                                               labels=tf.one_hot(actions, 5))

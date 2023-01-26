@@ -34,7 +34,7 @@ def train(task):
     current_batch_size_level = 0
     current_iteration = 0
     batch_size = 10
-    job='train'
+    job = 'train'
 
     while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
         # start first iteration
@@ -43,7 +43,6 @@ def train(task):
         market = Market(trader, history_length=1)
         market.update_data()
         df = market.get_df()
-
         # Get the current and next states
         state = market.get_state(0)
         state_size = state.shape[1]
@@ -63,21 +62,20 @@ def train(task):
             if done:
                 break
             if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
-                current_batch_size_level] :
+                current_batch_size_level]:
                 batch_size = int(len(df) * levels[current_batch_size_level])
                 print(
                     f'Level {list(levels.keys())[current_batch_size_level] - 1} is done. Batch size now is {batch_size} ({levels[current_batch_size_level] * 100}% of the data)')
-                if current_batch_size_level <= next(reversed(levels.items()))[0]-1:
+                if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
                     current_batch_size_level += 1
-
             # Get nextstate value
             next_state = market.get_state(i + 1)
-
+            state = next_state
             # Predict the action using the model
             action = agent.act(state=state, task=task, job='train')
             print(f'iterate {i} of {task} yielded {action}')
             # Execute the trade and get the reward
-            reward = trader.trade(action, row, job)
+            reward = trader.trade(action, row, previous_row, job)
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -114,7 +112,7 @@ def train(task):
 
 
 if __name__ == '__main__':
-    # results = train(task="policy_gradient")
+    # results = train(task="dqn")
     with Pool(4) as p:
         results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
         print(results)
