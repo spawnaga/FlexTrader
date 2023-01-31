@@ -14,7 +14,7 @@ from tensorflow.keras.layers import Input, Dense, Lambda
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import History
-# from tensorflow.compat.v1.keras.layers import CuDNNLSTM
+from tensorflow.compat.v1.keras.layers import CuDNNLSTM
 import pickle
 import sys
 import math
@@ -61,8 +61,7 @@ class Memory:
 
 
 class MultiTask:
-    def __init__(self, task, state, state_size, action_size, job='test', layers=3):
-        self.state = state
+    def __init__(self, task, state_size, action_size=5, job='test', layers=3):
         self.state_size = state_size
         self.action_size = action_size
         self.learning_rate = 0.01
@@ -122,7 +121,7 @@ class MultiTask:
         # Define the hidden layers using CuDNNLSTM
         x = Lambda(lambda x: tf.expand_dims(x, axis=1))(x)
         for _ in range(layers):
-            x = Dense(64, activation="relu")(x)  # number of hidden layers
+            x = CuDNNLSTM(100, return_sequences=True)(x)  # number of hidden layers
 
         # Define the output layers for the first and second tasks
         output = Dense(num_outputs, activation='softmax')(x)
@@ -250,9 +249,8 @@ class MultiTask:
     def replay_policy_gradient(self, batch_size):
         experiences = self.policy_gradient_memory.sample(batch_size)
         states = np.array([e[0] for e in experiences])
-        actions = np.array([e[1] for e in experiences])
         rewards = np.array([e[2] for e in experiences])
-    
+        
         # Compute the advantages
         advantages = rewards - np.mean(rewards)
         advantages = (advantages - np.mean(advantages)) / (np.std(advantages) + 1e-10)
@@ -260,28 +258,27 @@ class MultiTask:
         with tf.GradientTape() as tape:
             # Forward pass of the model
             logits = self.policy_gradient_model(states.squeeze())
-            logits = tf.reshape(logits, (-1, 5))
+            logits = tf.reshape(logits, (-1, self.action_size))
             log_probs = tf.nn.log_softmax(logits)
-    
+            
             # Sample actions from the policy
             sampled_actions = tf.random.categorical(log_probs, 1)
     
             # Compute the negative log likelihood of the actions taken
             negative_log_likelihood = tf.nn.softmax_cross_entropy_with_logits(logits=logits,
-                                                                              labels=tf.one_hot(sampled_actions, 5))
-            # Compute the loss as the mean of the negative log likelihood
+                        labels=tf.one_hot(sampled_actions, self.action_size))
+            # Compute the loss as the mean of the negative log likelihood multiplied by the rewards
             loss = tf.reduce_mean(negative_log_likelihood * advantages)
     
         # Compute the gradients of the loss with respect to the model's trainable weights
         grads = tape.gradient(loss, self.policy_gradient_model.trainable_weights)
         # Apply the gradients to the model's optimizer
         self.policy_gradient_model.optimizer.apply_gradients(zip(grads, self.policy_gradient_model.trainable_weights))
-    
+
         # Keep track of the loss in TensorBoard
         with tf.summary.create_file_writer(self.policy_gradient_log).as_default():
             tf.summary.scalar('loss', loss, step=self.policy_gradient_model.optimizer.iterations)
 
-    # @tf.function(experimental_relax_shapes=True)
     def act(self, state, task, job='test'):
         """Method for getting the next action for the agent to take"""
         # state = self.normalize_data(state)

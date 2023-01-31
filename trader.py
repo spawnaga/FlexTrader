@@ -158,8 +158,8 @@ class Trader:
                           realized_profit_loss):
         time_since_last_action = iteration - last_action_time
         if state == 'invalid':
-            self.punish_epsilon +=1
-            return -200-(10+self.punish_epsilon)  # punishment for invalid action
+            self.punish_epsilon += 1
+            return -200 - (10 + self.punish_epsilon)  # punishment for invalid action
         elif action == 0 and self.num_contracts <= 0:  # start long trade
             if state == "long" and time_since_last_action < 3:  # last action was also
                 # long trade and taken less than 5 minutes ago
@@ -178,7 +178,7 @@ class Trader:
                 return -5  # punishment for holding without any positions
             elif state == "long":
                 if price > previous_price:
-                    return 10 * (price - previous_price) # increased reward for profitable trade
+                    return 10 * (price - previous_price)  # increased reward for profitable trade
                 else:
                     return -10 * abs(price - previous_price)
             elif state == "short":
@@ -202,42 +202,50 @@ class Trader:
             return -200  # punishment for invalid action
 
 
+# self=self.market
 class Market:
     """Class for handling market data"""
 
-    def __init__(self, trader, ibkr=False, history_length=1, contract=None):
-        # Connect to IB gateway
-        if ibkr:
-            self.ib = IB()
-            self.ib.connect('127.0.0.1', 7496, clientId=np.random.randint(0, 1000))
+    def __init__(self, proxy=None, ibkr=False):
 
-            # Store the history length as an instance variable
-            self.history_length = history_length
-
-            # Get the contract and data
-            self.contract = contract
-            self.ib.qualifyContracts(self.contract)
         self.scaler = MinMaxScaler(feature_range=(0, 4))
-        self.trader = trader
+        self.trader = Trader()
 
-    def download_data(self):
-        self.contract = ContFuture('NQ', 'CME')
+        if ibkr:
+            if proxy == None:
+                self.ib = IB()
+
+            else:
+                self.ib = proxy
+
+            self.checkIfReconnect()
+            self.df = self.update_data(True)
+
+    def checkIfReconnect(self):
+        if not self.ib.isConnected() or not self.ib.client.isConnected():
+            self.ib.disconnect()
+            self.ib.connect('127.0.0.1', 7496, np.random.randint(0, 1000))
+
+    def download_data(self, symbol='NQ', exchange='CME', currency='USD', length=100):
+        self.contract = ContFuture(symbol, exchange)
         self.ib.qualifyContracts(self.contract)
+
         # Download historical data using reqHistoricalData
         self.bars = self.ib.reqHistoricalData(
-            self.contract, endDateTime='', durationStr=f'{self.history_length} D',
-            barSizeSetting='5 mins', whatToShow='TRADES',
+            self.contract, endDateTime='', durationStr=f'{length} S',
+            barSizeSetting='5 secs', whatToShow='TRADES',
             useRTH=False
         )
-
         # Create a DataFrame from the downloaded data
         df = util.df(self.bars)
         # df = self.get_analysis(df)
         df.reset_index(inplace=True, drop=True)
         df = df[['open', 'high', 'low', 'close', 'volume']]
+
         return df
 
     def update_data(self, ibkr=False):
+
         if ibkr:
             df = self.download_data()
         else:
@@ -246,21 +254,19 @@ class Market:
         df['done'] = False
 
         self.df = df
-        self.scaler.fit(df.values)
+        self.scaler.fit(self.df.values)
 
-    def get_state(self, i=0):
+    def get_state(self, i=-1, numContracts=0):
         """Method for getting current state of market"""
-        df = self.df.copy()
-        df.iloc[i, -2] = self.trader.num_contracts
-        df["done"] = i + 2 >= len(df)
-        state = df.iloc[i, :].values.reshape(1, -1)
-
+        self.df.iloc[i, -2] = numContracts
+        self.df["done"] = i + 2 >= len(self.df)
+        state = self.df.iloc[i, :].values.reshape(1, -1)
         state = self.scaler.transform(state)
         return state
 
     def load_data(self, file=r'NQ_data.csv'):
         df = pd.read_csv(file)
-        df = df.iloc[:,1:]
+        df = df[['open', 'high', 'low', 'close', 'volume']]
         df.dropna(inplace=True)
         return df
 

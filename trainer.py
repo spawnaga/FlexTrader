@@ -42,14 +42,14 @@ def train(task):
     # start first iteration
     current_iteration += 1
     # initialize market and get the dataframe
-    market = Market(trader, history_length=1)
+    market = Market(trader)
     market.update_data()
     df = market.get_df()
     # Get the current and next states
-    state = market.get_state(0)
+    state = market.get_state(i=0)
     state_size = state.shape[1]
 
-    agent = MultiTask(task=task, state=state, action_size=action_size, state_size=state_size, job='train')
+    agent = MultiTask(task=task, action_size=action_size, state_size=state_size, job='train')
     replay_functions = {
         "dqn": agent.replay_dqn,
         "ddqn": agent.replay_ddqn,
@@ -113,7 +113,7 @@ def train(task):
 
 
 if __name__ == '__main__':
-    # results = train(task="dqn")
-    with Pool(4) as p:
-        results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
-        print(results)
+    results = train(task="actor_critic")
+    # with Pool(4) as p:
+    #     results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+    #     print(results)
