@@ -233,7 +233,6 @@ class MultiTask:
         self.policy_gradient_memory.add(transition)
 
     def replay_master(self, batch_size):
-
         experiences = self.master_memory.sample(batch_size)
         states, actions, rewards, next_states, dones = zip(*experiences)
         states = np.concatenate(states)
@@ -254,7 +253,6 @@ class MultiTask:
             tf.summary.scalar("loss", history.history['loss'][0], step=self.master_model.optimizer.iterations)
 
     def replay_dqn(self, batch_size):
-
         experiences = self.dqn_memory.sample(batch_size)
         states, actions, rewards, next_states, dones = zip(*experiences)
         states = np.concatenate(states)
@@ -275,7 +273,6 @@ class MultiTask:
             tf.summary.scalar("loss", history.history['loss'][0], step=self.dqn_model.optimizer.iterations)
 
     def replay_ddqn(self, batch_size):
-
         experiences = self.ddqn_memory.sample(batch_size)
         states, actions, rewards, next_states, dones = zip(*experiences)
         states = np.vstack(states)
@@ -302,7 +299,6 @@ class MultiTask:
         self.ddqn_target_model.set_weights(self.ddqn_model.get_weights())
 
     def replay_actor_critic(self, batch_size):
-
         """Method for training the actor-critic model using experience replay"""
         # Sample a batch of experiences from the memory
         experiences = self.actor_critic_memory.sample(batch_size)
