@@ -127,10 +127,6 @@ class Trader:
         #     f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
         #     f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
 
-        print(
-            f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
-            f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
-
         self.last_action_time = action_time
         return rewards
 
