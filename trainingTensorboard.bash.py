@@ -1,0 +1,1 @@
+python -m tensorboard.main --logdir=C:\Projects\FlexTrader\logs

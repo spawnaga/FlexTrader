@@ -8,7 +8,11 @@ Created on Wed Jan 18 01:45:26 2023
 from collections import deque
 import matplotlib.pyplot as plt
 from trader import Trader, Market
+<<<<<<< HEAD
 from agentsEpsGreed import MultiTask
+=======
+from agents import MultiTask
+>>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
 import numpy as np
 from multiprocessing import Pool
 import gc
@@ -32,12 +36,20 @@ def test(task):
     # Initialize the list to store the rolling average of the rewards
     rolling_average = []
     # Update market data and get the DataFrame
+<<<<<<< HEAD
     market = Market(trader)
+=======
+    market = Market(trader, history_length=1)
+>>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
     market.update_data()
     df = market.get_df()
     state = market.get_state(0)
     state_size = state.shape[1]
+<<<<<<< HEAD
     agent = MultiTask(task=task, state_size=state_size, action_size=action_size, job='test')
+=======
+    agent = MultiTask(task=task, state=state, state_size=state_size, action_size=action_size, job='test')
+>>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
     if eval(f'agent.{task}_memory._size()') == 0:
         agent.load(name='trial1', task=task)
 
@@ -78,7 +90,11 @@ def test(task):
 
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     results = test(task="actor_critic")
+=======
+    results = test(task="dqn")
+>>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
     # with Pool(4) as p:
     #     results = [p.map(test, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
     #     print(results)
