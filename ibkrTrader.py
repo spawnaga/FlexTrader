@@ -7,11 +7,7 @@ Created on Mon Jan 30 17:23:19 2023
 import numpy as np
 from ib_insync import *
 from trader import Trader, Market
-<<<<<<< HEAD
 from agentsEpsGreed import MultiTask
-=======
-from agents import MultiTask
->>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
 
 util.startLoop()
 

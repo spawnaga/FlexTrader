@@ -41,11 +41,8 @@ class Trader:
         self.expon = 1.05
         self.hold_penalty = -100
         self.last_action_time = 0
-<<<<<<< HEAD
         self.punish_epsilon = 0.1
-=======
         self.punish_epsilon = 2
->>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
 
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
@@ -125,17 +122,14 @@ class Trader:
 
         # Calculate profit or loss of trade
         self.account_value(close_price, realizedPNL)
-<<<<<<< HEAD
         #
         # print(
         #     f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
         #     f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
-=======
 
         print(
             f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
             f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
->>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
 
         self.last_action_time = action_time
         return rewards
@@ -156,8 +150,6 @@ class Trader:
         self.max_loss = min(self.max_loss, self.realized_profit_loss)
         self.total_value = self.capital + self.profit
 
-<<<<<<< HEAD
-=======
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate number of contracts to trade using Kelly Criterion"""
         f = win_loss_ratio - 1
@@ -167,12 +159,10 @@ class Trader:
         kelly_criterion = f / b
         return kelly_criterion
 
->>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
     def calculate_rewards(self, state, price, previous_price, action, iteration, last_action_time,
                           realized_profit_loss):
         time_since_last_action = iteration - last_action_time
         if state == 'invalid':
-<<<<<<< HEAD
             self.punish_epsilon += 0.1
             return -2 - self.punish_epsilon  # punishment for invalid action
         elif action == 0:  # start long trade
@@ -208,53 +198,7 @@ class Trader:
                 return 1
         else:
             return -2 - self.punish_epsilon  # punishment for invalid action
-=======
-            self.punish_epsilon += 1
-            return -200 - (10 + self.punish_epsilon)  # punishment for invalid action
-        elif action == 0 and self.num_contracts <= 0:  # start long trade
-            if state == "long" and time_since_last_action < 3:  # last action was also
-                # long trade and taken less than 5 minutes ago
-                return -200  # penalty for repeated action
-            else:
-                return 100  # increased reward for starting a trade
-        elif action == 1 and self.num_contracts >= 0:  # start short trade
-            if state == "short" and time_since_last_action < 3:  # last action was also
-                # short trade and taken less than 5 minutes ago
-                return -200  # penalty for repeated action
-            else:
-                return 100
-        elif action == 2:  # hold trade
-            self.punish_epsilon = 2
-            if state == "hold":  # not holding any position
-                return -5  # punishment for holding without any positions
-            elif state == "long":
-                if price > previous_price:
-                    return 10 * (price - previous_price)  # increased reward for profitable trade
-                else:
-                    return -10 * abs(price - previous_price)
-            elif state == "short":
-                if price < previous_price:
-                    return 10 * (previous_price - price)
-                else:
-                    return -10 * abs(price - previous_price)
-        elif action == 3:  # close long trade
-            if state == "close" and time_since_last_action > 3:  # last action was also
-                # long trade and taken less than 5 minutes ago
-                return np.maximum(200, realized_profit_loss / 100)
-            else:
-                return -25  # punishment for frequent closing actions
-        elif action == 4:  # close short trade
-            if state == "close" and time_since_last_action > 3:  # last action was also
-                # short trade and taken less than 5 minutes ago
-                return np.maximum(200, realized_profit_loss / 100)
-            else:
-                return -25  # punishment for frequent closing actions
-        else:
-            return -200  # punishment for invalid action
->>>>>>> 97b72eb88e95ec18daaf333344a9334aa757c634
 
-
-# self=self.market
 class Market:
     """Class for handling market data"""
 
