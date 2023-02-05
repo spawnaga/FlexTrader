@@ -40,7 +40,7 @@ def test():
     market = Market(trader)
     market.update_data()
     df = market.get_df()
-    state = market.get_state(i=0)
+    state = market.get_state(i=0, numContracts=trader.num_contracts)
 
     episode_reward = 0
     for i, row in df.iterrows():
@@ -58,9 +58,9 @@ def test():
             if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
                 current_batch_size_level += 1
 
-        next_state = market.get_state(i + 1)
+        next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
         task = agent.choose_task(state, 'test')
-        action = agent.act(task=agent.tasks[task], state=state, job='test')
+        action = agent.act(task=task, state=state, job='test')
         reward = trader.trade(action, row, previous_row, i)
         steps.append(i)
         previous_row = row

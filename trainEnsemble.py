@@ -58,9 +58,9 @@ def train():
                 if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
                     current_batch_size_level += 1
 
-            next_state = market.get_state(i + 1)
             task = agent.choose_task(state, 'train')
-            action = agent.act(task=agent.tasks[task], state=state, job='train')
+            action = agent.act(task=task, state=state, job='train')
+            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
             reward = trader.trade(action, row, previous_row, i)
             steps.append(i)
             agent.add_master_transition(state, task, reward, next_state, done)

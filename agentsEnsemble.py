@@ -143,8 +143,8 @@ class MultiTask:
         self.dqn_model, self.dqn_log = self._build_model(action_size, 'dqn', layers)
         self.dqn_memory = Memory()
         self.dqn_gamma = 0.95
-        self.dqn_epsilon = 3
-        self.dqn_epsilon_min = 0.6
+        self.dqn_epsilon = 1.0
+        self.dqn_epsilon_min = 0.2
         self.dqn_epsilon_decay = 0.95
         self.dqn_learning_rate = 0.001
 
@@ -154,8 +154,8 @@ class MultiTask:
         self.ddqn_target_model, self.ddqn_target_log = self._build_model(action_size, 'ddqn_target', layers)
         self.ddqn_memory = Memory()
         self.ddqn_gamma = 0.95
-        self.ddqn_epsilon = 3
-        self.ddqn_epsilon_min = 0.4
+        self.ddqn_epsilon = 1.0
+        self.ddqn_epsilon_min = 0.2
         self.ddqn_epsilon_decay = 0.995
 
         # Initialize actor-critic model
@@ -166,9 +166,9 @@ class MultiTask:
         self.actor_critic_alpha = 0.001
         self.actor_critic_alpha_decay = 0.995
         self.actor_critic_alpha_min = 0.01
-        self.actor_critic_epsilon = 3
+        self.actor_critic_epsilon = 1.0
         self.actor_critic_epsilon_decay = 0.995
-        self.actor_critic_epsilon_min = 0.4
+        self.actor_critic_epsilon_min = 0.2
 
         # Initialize PPO model
         self.policy_gradient_learning_rate = 0.1
@@ -176,9 +176,9 @@ class MultiTask:
                                                                                  layers=6)
         self.policy_gradient_memory = Memory()
         self.policy_gradient_gamma = 0.95
-        self.policy_gradient_epsilon = 3
+        self.policy_gradient_epsilon = 1.0
         self.policy_gradient_alpha_decay = 0.995
-        self.policy_gradient_alpha_min = 0.4
+        self.policy_gradient_alpha_min = 0.2
 
     def _build_model(self, num_outputs, task, layers=3):
         # Define the input layer
@@ -374,11 +374,13 @@ class MultiTask:
         return np.argmax(task)
 
     def act(self, state, task, job='test'):
+        task = self.tasks[task]
         """Method for getting the next action for the agent to take"""
         if task == 'dqn':
             if job == 'train' and np.random.rand() <= self.dqn_epsilon:
                 self.dqn_epsilon *= self.dqn_epsilon_decay
                 self.dqn_epsilon = max(self.dqn_epsilon, self.dqn_epsilon_min)
+                print(task, "random")
                 return random.randrange(self.action_size)
             q_values = self.dqn_model.predict(state).reshape(-1)
             return np.argmax(q_values)
@@ -387,6 +389,7 @@ class MultiTask:
             if job == 'train' and np.random.rand() <= self.ddqn_epsilon:
                 self.ddqn_epsilon *= self.ddqn_epsilon_decay
                 self.ddqn_epsilon = max(self.ddqn_epsilon, self.ddqn_epsilon_min)
+                print(task, "random")
                 return random.randrange(self.action_size)
             q_values = self.ddqn_model.predict(state).reshape(-1)
             return np.argmax(q_values)
@@ -396,6 +399,7 @@ class MultiTask:
                 self.actor_critic_epsilon *= self.actor_critic_epsilon_decay
                 self.actor_critic_epsilon = max(self.actor_critic_epsilon, self.actor_critic_epsilon_min)
                 if np.random.rand() <= self.actor_critic_epsilon:
+                    print(task, "random")
                     return random.randrange(self.action_size)
             probs = self.actor_critic_model.predict(state).reshape(-1)
             return np.argmax(probs)
@@ -405,6 +409,7 @@ class MultiTask:
                 self.policy_gradient_epsilon *= self.policy_gradient_alpha_decay
                 self.policy_gradient_epsilon = max(self.policy_gradient_epsilon, self.policy_gradient_alpha_min)
                 if np.random.rand() <= self.policy_gradient_epsilon:
+                    print(task, "random")
                     return random.randrange(self.action_size)
             probs = self.policy_gradient_model.predict(state).reshape(-1)
             return np.argmax(probs)

@@ -123,9 +123,9 @@ class Trader:
         # Calculate profit or loss of trade
         self.account_value(close_price, realizedPNL)
         #
-        # print(
-        #     f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
-        #     f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
+        print(
+            f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
+            f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
 
         self.last_action_time = action_time
         return rewards
@@ -177,7 +177,7 @@ class Trader:
                 return 2
         elif action == 2:  # hold trade
             if state == "hold":  # not holding any position
-                return -0.1 + self.punish_epsilon  # punishment for holding without any positions
+                return -0.5 + self.punish_epsilon  # punishment for holding without any positions
             elif state == "long":
                 # print(price, previous_price, price-previous_price, price-previous_price < 0, -1 if price - previous_price < 0 else 1)
                 return -1 if price - previous_price < 0 else 1
