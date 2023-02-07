@@ -321,20 +321,20 @@ class MultiTask:
         if os.path.exists(folder_name):
             if task == 'dqn' and os.path.exists(f'{folder_name}/{name}_dqn.h5'):
                 self.dqn_model.load_weights(os.path.join(folder_name, f'{name}_dqn.h5'))
-                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                with open(f'{name}_{task}_memory.pickle', 'rb') as f:
                     self.dqn_memory = pickle.load(f)
             elif task == 'ddqn' and os.path.exists(f'{folder_name}/{name}_ddqn.h5'):
                 self.ddqn_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
                 self.ddqn_target_model.load_weights(os.path.join(folder_name, f'{name}_ddqn.h5'))
-                with open(os.path.join(folder_name, f'{folder_name}/{name}_{task}_memory.pickle'), 'rb') as f:
+                with open(f'{folder_name}/{name}_{task}_memory.pickle', 'rb') as f:
                     self.ddqn_memory = pickle.load(f)
             elif task == 'actor_critic' and os.path.exists(f'{folder_name}/{name}_actor_critic.h5'):
                 self.actor_critic_model.load_weights(os.path.join(folder_name, f'{name}_actor_critic.h5'))
-                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                with open(f'{name}_{task}_memory.pickle', 'rb') as f:
                     self.actor_critic_memory = pickle.load(f)
             elif task == 'policy_gradient' and os.path.exists(f'{folder_name}/{name}_policy_gradient.h5'):
                 self.policy_gradient_model.load_weights(os.path.join(folder_name, f'{name}_policy_gradient.h5'))
-                with open(os.path.join(folder_name, f'{name}_{task}_memory.pickle'), 'rb') as f:
+                with open(f'{name}_{task}_memory.pickle', 'rb') as f:
                     self.policy_gradient_memory = pickle.load(f)
         else:
             return

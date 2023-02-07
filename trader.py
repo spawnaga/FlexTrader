@@ -41,7 +41,7 @@ class Trader:
         self.expon = 1.05
         self.hold_penalty = -100
         self.last_action_time = 0
-        self.punish_epsilon = -100
+        self.punish_epsilon = -10000
         self.totInvalidPerc = 0
         self.counter = 0
 

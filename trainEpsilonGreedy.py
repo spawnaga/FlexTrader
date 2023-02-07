@@ -98,9 +98,6 @@ def train(task):
             rolling_window.append(trader.realized_profit_loss)
             # Calculate the rolling average of the rewards and append it to the list
             rolling_average.append(np.mean(rolling_window))
-            # Set the current state to the next state
-            plt.plot(rolling_average)
-
             replay_functions[task](batch_size)
 
             if i % 50 == 0:
