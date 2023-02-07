@@ -19,7 +19,7 @@ def train(task):
     # Initialize the Trader object and connect to the IB gateway
     levels = {0: 0.005, 1: 0.01, 2: 0.02, 3: 0.03, 4: 0.04, 5: 0.05, 6: 0.1, 7: 0.15, 8: 0.2, 9: 0.25}
     # Update learning of models
-    
+
     trader = Trader()
 
     # Initialize the DQN agent
@@ -37,6 +37,7 @@ def train(task):
     current_batch_size_level = 0
     current_iteration = 0
     batch_size = 10
+    previous_action = 2
 
     # while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
     # start first iteration
@@ -80,12 +81,13 @@ def train(task):
                 if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
                     current_batch_size_level += 1
             # Get nextstate value
-            next_state = market.get_state(i + 1)
+            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
 
             # Predict the action using the model
             action = agent.act(state=state, task=task, job='train')
             # Execute the trade and get the reward
-            reward = trader.trade(action, row, previous_row, i)
+            reward = trader.trade(action, row, previous_row, i, previous_action)
+            previous_action = action
             # Append the total reward and number of steps for this episode to the lists
             rewards.append(reward)
             steps.append(i)
@@ -114,7 +116,7 @@ def train(task):
 
 
 if __name__ == '__main__':
-    # results = train(task="actor_critic")
-    with Pool(4) as p:
-        results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
-        print(results)
+    results = train(task="ddqn")
+    # with Pool(4) as p:
+    #     results = [p.map(train, ['dqn', 'ddqn', 'actor_critic', 'policy_gradient'])]
+    #     print(results)

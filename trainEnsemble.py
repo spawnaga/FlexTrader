@@ -60,8 +60,8 @@ def train():
 
             task = agent.choose_task(state, 'train')
             action = agent.act(task=task, state=state, job='train')
-            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
             reward = trader.trade(action, row, previous_row, i)
+            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
             steps.append(i)
             agent.add_master_transition(state, task, reward, next_state, done)
             for _, task1 in agent.tasks.items():

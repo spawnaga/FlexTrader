@@ -36,19 +36,20 @@ class Trader:
         self.priceAtStart = 0
         self.priceAtClose = 0
         self.realized_profit_loss = 0
-        self.unreliazed_profit_loss = 0
+        self.unrealized_profit_loss = 0
         self.penalty = 1000
         self.expon = 1.05
         self.hold_penalty = -100
         self.last_action_time = 0
-        self.punish_epsilon = 0.1
-        self.punish_epsilon = 2
+        self.punish_epsilon = -100
+        self.totInvalidPerc = 0
+        self.counter = 0
 
     def _get_kelly_criterion(self, win_loss_ratio, avg_profit):
         """Calculate the optimal number of contracts to trade using Kelly Criterion"""
         return win_loss_ratio - (1 - win_loss_ratio) / (avg_profit / 20)
 
-    def trade(self, action, row, previous_row, i):
+    def trade(self, action, row, previous_row, i, previous_action=2):
         """Execute a trade based on the current market state and the output of the model"""
 
         realizedPNL = 0
@@ -60,7 +61,7 @@ class Trader:
             action_time = i
             if self.num_contracts < 0:
                 self.priceAtClose = close_price
-                Action = "close short and start long position"
+                state = "close short and start long position"
                 realizedPNL = (self.priceAtClose - self.priceAtStart) * 20 * self.num_contracts
                 self.num_contracts = 0
                 self.cash = abs(self.total_value) + realizedPNL
@@ -68,7 +69,7 @@ class Trader:
                     self.num_wins += 1
                 else:
                     self.num_losses += 1
-            Action = "Long"
+            state = "Long"
             self.num_contracts = int(self.cash / close_price / 20)
             self.cash = self.cash - abs(self.num_contracts * close_price * 20)
             self.priceAtStart = close_price
@@ -77,7 +78,7 @@ class Trader:
             action_time = i
             if self.num_contracts > 0:
                 self.priceAtClose = close_price
-                Action = "close long and start short position"
+                state = "close long and start short position"
                 realizedPNL = (self.priceAtClose - self.priceAtStart) * 20 * self.num_contracts
                 self.num_contracts = 0
                 self.cash = abs(self.total_value) + realizedPNL
@@ -85,14 +86,14 @@ class Trader:
                     self.num_wins += 1
                 else:
                     self.num_losses += 1
-            Action = "short"
+            state = "short"
             self.num_contracts = -1 * int(self.cash / close_price / 20)
             self.cash = abs(-1 * self.cash - self.num_contracts * close_price * 20)
             self.priceAtStart = close_price
             self.num_trades += 1
         elif self.num_contracts > 0 and action == 3:
             self.priceAtClose = close_price
-            Action = "close"
+            state = "close"
             realizedPNL = (self.priceAtClose - self.priceAtStart) * 20 * self.num_contracts
             self.num_contracts = 0
             self.cash = abs(self.total_value) + realizedPNL
@@ -102,7 +103,7 @@ class Trader:
                 self.num_losses += 1
         elif self.num_contracts < 0 and action == 4:
             self.priceAtClose = close_price
-            Action = "close"
+            state = "close"
             realizedPNL = (self.priceAtStart - self.priceAtClose) * 20 * self.num_contracts
             self.num_contracts = 0
             self.cash = abs(self.total_value) + realizedPNL
@@ -111,36 +112,42 @@ class Trader:
             else:
                 self.num_losses += 1
         elif self.num_contracts == 0 and action == 2:
-            Action = "hold"
+            state = "hold"
         elif action == 2:
-            Action = "long" if self.num_contracts > 0 else "short"
+            state = "long" if self.num_contracts > 0 else "short"
         else:
-            Action = "invalid"
+            state = "invalid"
+        if state == 'invalid' and i != 0:
+            self.counter += 1
+            self.totInvalidPerc = round(self.counter / i * 100, 2)
 
-        rewards = self.calculate_rewards(Action, row['close'], previous_row['close'], action, i, self.last_action_time,
-                                         self.realized_profit_loss)
-
+        rewards = round(
+            self.calculate_rewards(state, row['close'], previous_row['close'], action, i, self.last_action_time,
+                                   self.realized_profit_loss, previous_action), 2)
+        if rewards < self.punish_epsilon:
+            self.punish_epsilon = rewards
         # Calculate profit or loss of trade
         self.account_value(close_price, realizedPNL)
         #
         print(
             f'action = {action}, since last action = {i - self.last_action_time}, holding ={self.num_contracts}, '
-            f'Action = {Action}, unrealized pnl = {self.unreliazed_profit_loss}, rewards = {rewards}')
+            f'state = {state}, previous price = {previous_row["close"]}, current price = {row["close"]}, At open '
+            f'price  = {self.priceAtStart}, unrealized pnl = {self.unrealized_profit_loss}, rewards = {rewards}, toal '
+            f'invalid actions percentage = {self.totInvalidPerc}%')
 
         self.last_action_time = action_time
         return rewards
 
     def account_value(self, close_price, realizedPNL):
         # Calculate profit or loss of trade
-        unreliazed_profit_loss = self.num_contracts * (close_price - self.priceAtStart) * 20
+        unrealized_profit_loss = self.num_contracts * (close_price - self.priceAtStart) * 20
 
         # Update realized PNL
-        if realizedPNL != 0:
-            self.realized_profit_loss += realizedPNL
+        self.realized_profit_loss += realizedPNL
 
         # Update performance metrics
-        self.profit = unreliazed_profit_loss + self.realized_profit_loss
-        self.unreliazed_profit_loss = 0.0 if unreliazed_profit_loss == 0.0 else 0.0 if unreliazed_profit_loss == -0.0 else unreliazed_profit_loss
+        self.profit = self.realized_profit_loss + unrealized_profit_loss
+        self.unrealized_profit_loss = unrealized_profit_loss
 
         self.max_profit = max(self.max_profit, self.realized_profit_loss)
         self.max_loss = min(self.max_loss, self.realized_profit_loss)
@@ -156,44 +163,33 @@ class Trader:
         return kelly_criterion
 
     def calculate_rewards(self, state, price, previous_price, action, iteration, last_action_time,
-                          realized_profit_loss):
+                          realized_profit_loss, previous_action):
         time_since_last_action = iteration - last_action_time
-        if state == 'invalid':
-            self.punish_epsilon += 0.1
-            return -2 - self.punish_epsilon  # punishment for invalid action
-        elif action == 0:  # start long trade
-            if time_since_last_action < 2:  # last action was also
-                # long trade and taken less than 5 minutes ago
-                return -1  # penalty for repeated action
-            else:
-                self.punish_epsilon = 0.1
-                return 2  # increased reward for starting a trade
+
+        if state == 'invalid' or (action == previous_action and action != 2):
+            return self.punish_epsilon  # severe punishment for invalid action
+
+        # Encourage the agent to start a long or short trade
+        if action == 0:  # start long trade
+            return 50 if time_since_last_action >= 5 else -50  # discourage repeated actions within 5 minutes
         elif action == 1:  # start short trade
-            if time_since_last_action < 2:  # last action was also
-                # short trade and taken less than 5 minutes ago
-                return -1  # penalty for repeated action
-            else:
-                self.punish_epsilon = 0.1
-                return 2
-        elif action == 2:  # hold trade
-            if state == "hold":  # not holding any position
-                return -0.5 + self.punish_epsilon  # punishment for holding without any positions
+            return 50 if time_since_last_action >= 5 else -50  # discourage repeated actions within 5 minutes
+
+        # Reward the agent for holding a position if it's profitable, discourage if it's not
+        if action == 2:  # hold trade
+            if state == "hold":
+                return -50  # punishment for holding without any positions
             elif state == "long":
-                # print(price, previous_price, price-previous_price, price-previous_price < 0, -1 if price - previous_price < 0 else 1)
-                return -1 if price - previous_price < 0 else 1
+                return (price - previous_price) * (1 + time_since_last_action / 10) * self.num_contracts * 2
             elif state == "short":
-                # print(price, previous_price, previous_price - price, previous_price - price < 0, -1 if previous_price - price < 0 else 1)
-                return -1 if previous_price - price < 0 else 1
-        elif action == 3:  # close long trade
-            if state == "close":
-                self.punish_epsilon =0.1
-                return 1
-        elif action == 4:  # close short trade
-            if state == "close":
-                self.punish_epsilon = 0.1
-                return 1
-        else:
-            return -2 - self.punish_epsilon  # punishment for invalid action
+                return (price - previous_price) * (1 + time_since_last_action / 10) * self.num_contracts * 2
+
+        # Encourage the agent to close a trade when it's profitable and discourage taking the same action repeatedly
+        if state == "close" and (action == 3 or action == 4):  # close long trade or close short trade
+            return realized_profit_loss * (1 + time_since_last_action) / 100
+
+        return self.punish_epsilon  # severe punishment for invalid action
+
 
 class Market:
     """Class for handling market data"""
