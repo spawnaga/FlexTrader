@@ -171,9 +171,9 @@ class Trader:
 
         # Encourage the agent to start a long or short trade
         if action == 0:  # start long trade
-            return 50 if time_since_last_action >= 5 else -50  # discourage repeated actions within 5 minutes
+            return 50 if time_since_last_action >= 5 else -5000  # discourage repeated actions within 5 minutes
         elif action == 1:  # start short trade
-            return 50 if time_since_last_action >= 5 else -50  # discourage repeated actions within 5 minutes
+            return 50 if time_since_last_action >= 5 else -5000  # discourage repeated actions within 5 minutes
 
         # Reward the agent for holding a position if it's profitable, discourage if it's not
         if action == 2:  # hold trade
@@ -254,7 +254,7 @@ class Market:
 
     def load_data(self, file=r'NQ_data.csv'):
         df = pd.read_csv(file)
-        df = df[['open', 'high', 'low', 'close', 'volume']]
+        df = df.iloc[:, 1:]
         df.dropna(inplace=True)
         return df
 

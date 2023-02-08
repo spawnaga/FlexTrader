@@ -370,7 +370,6 @@ class MultiTask:
             self.dqn_epsilon *= self.dqn_epsilon_decay
             self.dqn_epsilon = max(self.dqn_epsilon, self.dqn_epsilon_min)
             return random.randrange(len(self.tasks.keys()))
-
         return np.argmax(task)
 
     def act(self, state, task, job='test'):

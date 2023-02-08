@@ -34,49 +34,48 @@ def train():
         for level, percentage in levels.items():
             if int(len(df) * percentage) < eval(f'agent.{task}_memory._size()'):
                 batch_size = int(len(df) * percentage)
-    while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
-        current_iteration += 1
-        market = Market(trader)
-        market.update_data()
-        df = market.get_df()
-        state = market.get_state(i=0)
+    current_iteration += 1
+    market = Market(trader)
+    market.update_data()
+    df = market.get_df()
+    state = market.get_state(i=0)
 
-        episode_reward = 0
+    episode_reward = 0
 
-        for i, row in df.iterrows():
-            if previous_row is None:
-                previous_row = row
-            done = i + 2 >= len(df)
-            if done:
-                break
-            if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
-                current_batch_size_level]:
-                batch_size = int(len(df) * levels[current_batch_size_level])
-                print(
-                    f'Level {list(levels.keys())[current_batch_size_level]} is done. Batch size now is {batch_size} '
-                    f'({levels[current_batch_size_level] * 100}% of the data)')
-                if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
-                    current_batch_size_level += 1
-
-            task = agent.choose_task(state, 'train')
-            action = agent.act(task=task, state=state, job='train')
-            reward = trader.trade(action, row, previous_row, i)
-            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
-            steps.append(i)
-            agent.add_master_transition(state, task, reward, next_state, done)
-            for _, task1 in agent.tasks.items():
-                agent.add_to_memory(task1, state, action, reward, next_state, done)
+    for i, row in df.iterrows():
+        if previous_row is None:
             previous_row = row
-            state = next_state
-            rolling_window.append(trader.realized_profit_loss)
-            episode_reward += reward
-            agent.replay_master(batch_size)
-            replay_functions[agent.tasks[task]](batch_size)
+        done = i + 2 >= len(df)
+        if done:
+            break
+        if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
+            current_batch_size_level]:
+            batch_size = int(len(df) * levels[current_batch_size_level])
+            print(
+                f'Level {list(levels.keys())[current_batch_size_level]} is done. Batch size now is {batch_size} '
+                f'({levels[current_batch_size_level] * 100}% of the data)')
+            if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
+                current_batch_size_level += 1
 
-            if i % 50 == 0:
-                agent.save_models_and_memories('model2')
-                print(f"Episode {i}/{current_iteration}: final account value {trader.total_value}")
-                print(f" which is a total profit/loss of {trader.total_value - trader.capital}")
+        task = agent.choose_task(state, 'train')
+        action = agent.act(task=task, state=state, job='train')
+        reward = trader.trade(action, row, previous_row, i)
+        next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
+        steps.append(i)
+        agent.add_master_transition(state, task, reward, next_state, done)
+        for _, task1 in agent.tasks.items():
+            agent.add_to_memory(task1, state, action, reward, next_state, done)
+        previous_row = row
+        state = next_state
+        rolling_window.append(trader.realized_profit_loss)
+        episode_reward += reward
+        agent.replay_master(batch_size)
+        replay_functions[agent.tasks[task]](batch_size)
+
+        if i % 50 == 0:
+            agent.save_models_and_memories('model2')
+            print(f"Episode {i}/{current_iteration}: final account value {trader.total_value}")
+            print(f" which is a total profit/loss of {trader.total_value - trader.capital}")
 
 
 if __name__ == '__main__':

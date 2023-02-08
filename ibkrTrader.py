@@ -46,7 +46,7 @@ class ibkrTrade:
         # Set the action to 2 (hold)
         self.action = 2
         # Initialize a `MultiTask` agent with the specified task, action size, state size, and job
-        self.agent = MultiTask(task=task, action_size=action_size, state_size=state_size, job='test')
+        self.agent = MultiTask(action_size=action_size, state_size=state_size)
         # Request historical data for the contract with the specified length and bar size
         self.history = self.ib.reqHistoricalData(
             self.contract, endDateTime='', durationStr=f'{length} D',

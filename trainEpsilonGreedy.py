@@ -38,9 +38,6 @@ def train(task):
     current_iteration = 0
     batch_size = 10
     previous_action = 2
-
-    # while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
-    # start first iteration
     current_iteration += 1
     # initialize market and get the dataframe
     market = Market(trader)
@@ -63,52 +60,47 @@ def train(task):
     for level, percentage in levels.items():
         if int(len(df) * percentage) < eval(f'agent.{task}_memory._size()'):
             batch_size = int(len(df) * percentage)
-    while not trader.profit >= 1000000 * 0.3 or not trader.num_trades >= 1000:
-        for i, row in df.iterrows():
-            reward = 0
-            if previous_row is None:
-                previous_row = row
-            done = i + 2 >= len(df)
-            if done:
-                break
-            if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
-                current_batch_size_level]:
-                batch_size = int(len(df) * levels[current_batch_size_level])
-                print(
-                    f'Level {list(levels.keys())[current_batch_size_level]} is done. Batch size now is {batch_size} '
-                    f'({levels[current_batch_size_level] * 100}% of the data)')
-
-                if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
-                    current_batch_size_level += 1
-            # Get nextstate value
-            next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
-
-            # Predict the action using the model
-            action = agent.act(state=state, task=task, job='train')
-            # Execute the trade and get the reward
-            reward = trader.trade(action, row, previous_row, i, previous_action)
-            previous_action = action
-            # Append the total reward and number of steps for this episode to the lists
-            rewards.append(reward)
-            steps.append(i)
-            agent.add_to_memory(task, state, action, reward, next_state, done)
+    for i, row in df.iterrows():
+        if previous_row is None:
             previous_row = row
-            state = next_state
-            # if i>2000: break
-            rolling_window.append(trader.realized_profit_loss)
-            # Calculate the rolling average of the rewards and append it to the list
-            rolling_average.append(np.mean(rolling_window))
-            replay_functions[task](batch_size)
+        done = i + 2 >= len(df)
+        if done:
+            break
+        if i == int(len(df) * levels[current_batch_size_level]) and batch_size <= len(df) * levels[
+            current_batch_size_level]:
+            batch_size = int(len(df) * levels[current_batch_size_level])
+            print(
+                f'Level {list(levels.keys())[current_batch_size_level]} is done. Batch size now is {batch_size} '
+                f'({levels[current_batch_size_level] * 100}% of the data)')
 
-            if i % 50 == 0:
-                # Save the update agents
-                agent.save('trial1', task)
-                # Garbage data disposal
-                gc.collect()
-                # Print progress
-                print(
-                    f"***************** Episode {current_iteration} of {task} final account was {trader.total_value}"
-                    f" which is a total profit/loss of {trader.total_value - trader.capital}")
+            if current_batch_size_level <= next(reversed(levels.items()))[0] - 1:
+                current_batch_size_level += 1
+        # Get nextstate value
+        next_state = market.get_state(i + 1, numContracts=trader.num_contracts)
+        # Predict the action using the model
+        action = agent.act(state=state, task=task, job='train')
+        # Execute the trade and get the reward
+        reward = trader.trade(action, row, previous_row, i, previous_action)
+        previous_action = action
+        # Append the total reward and number of steps for this episode to the lists
+        rewards.append(reward)
+        steps.append(i)
+        agent.add_to_memory(task, state, action, reward, next_state, done)
+        previous_row = row
+        state = next_state
+        rolling_window.append(trader.realized_profit_loss)
+        # Calculate the rolling average of the rewards and append it to the list
+        rolling_average.append(np.mean(rolling_window))
+        replay_functions[task](batch_size)
+        if i % 50 == 0:
+            # Save the update agents
+            agent.save('trial1', task)
+            # Garbage data disposal
+            gc.collect()
+            # Print progress
+            print(
+                f"***************** Episode {current_iteration} of {task} final account was {trader.total_value}"
+                f" which is a total profit/loss of {trader.total_value - trader.capital}")
     return trader.total_value - trader.capital
 
 
